@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shuvo Expense Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              'brand-bg': '#F8F7F4', // A warm, soft, light background
+              'brand-surface': '#FFFFFF',
+              'brand-primary': '#3B82F6', // A modern, friendly blue
+              'brand-secondary': '#EF4444', // A vibrant coral/red for expenses
+              'brand-accent': '#10B981', // A fresh green for income
+              'brand-segment': '#38BDF8', // A sky blue for segments
+            },
+          },
+        },
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.4",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "recharts": "https://aistudiocdn.com/recharts@^3.3.0",
+    "jspdf": "https://aistudiocdn.com/jspdf@^2.5.1",
+    "jspdf-autotable": "https://aistudiocdn.com/jspdf-autotable@^3.8.2"
+  }
+}
+</script>
+</head>
+  <body class="bg-brand-bg text-gray-800 dark:bg-gray-900 dark:text-gray-200">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
