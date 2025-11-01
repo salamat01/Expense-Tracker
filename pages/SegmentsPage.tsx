@@ -1,11 +1,10 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Segment } from '../types';
 import { useData } from '../contexts/DataContext';
 import EditIcon from '../components/icons/EditIcon';
 import TrashIcon from '../components/icons/TrashIcon';
-import CalculatorIcon from '../components/icons/CalculatorIcon';
 import Calculator from '../components/Calculator';
+import CalculatorIcon from '../components/icons/CalculatorIcon';
 
 const PRESET_COLORS = [
   '#EF4444', '#F43F5E', '#EC4899', '#D946EF', '#8B5CF6', '#6366F1',
@@ -30,8 +29,8 @@ const SegmentsPage: React.FC = () => {
   const [editingSegment, setEditingSegment] = useState<Segment | null>(null);
   const [expandedSegmentId, setExpandedSegmentId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [isCalculatorVisible, setIsCalculatorVisible] = useState(false);
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
+  const [isCalculatorVisible, setIsCalculatorVisible] = useState(false);
 
   const totalAllocated = useMemo(() => segments.reduce((sum, s) => sum + s.allocatedAmount, 0), [segments]);
   const unallocatedIncome = totalIncome - totalAllocated;
@@ -126,6 +125,7 @@ const SegmentsPage: React.FC = () => {
 
   return (
     <>
+      {isCalculatorVisible && <Calculator onClose={() => setIsCalculatorVisible(false)} />}
       <div className="space-y-8">
         <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-sky-500 to-cyan-500 text-transparent bg-clip-text">Budget Segments</h1>
         
@@ -149,7 +149,16 @@ const SegmentsPage: React.FC = () => {
           </div>
           
           <div className="bg-brand-surface dark:bg-gray-800 p-6 rounded-xl shadow-md">
-            <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-300">{editingSegment ? 'Edit Segment' : 'Create New Segment'}</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300">{editingSegment ? 'Edit Segment' : 'Create New Segment'}</h2>
+              <button
+                onClick={() => setIsCalculatorVisible(true)}
+                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                aria-label="Open calculator"
+              >
+                <CalculatorIcon className="h-8 w-8" />
+              </button>
+            </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label htmlFor="segment-name" className="block text-sm font-medium text-gray-600 dark:text-gray-400">Segment Name</label>
@@ -292,14 +301,6 @@ const SegmentsPage: React.FC = () => {
           })}
         </div>
       </div>
-      <button
-        onClick={() => setIsCalculatorVisible(true)}
-        className="fixed bottom-20 right-4 bg-brand-primary text-white p-4 rounded-full shadow-lg hover:bg-blue-600 transition-transform transform hover:scale-110 z-30"
-        aria-label="Open calculator"
-      >
-        <CalculatorIcon />
-      </button>
-      {isCalculatorVisible && <Calculator onClose={() => setIsCalculatorVisible(false)} />}
     </>
   );
 };

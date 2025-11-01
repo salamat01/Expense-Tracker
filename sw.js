@@ -1,5 +1,4 @@
-
-const CACHE_NAME = 'shuvo-expense-tracker-v1';
+const CACHE_NAME = 'shuvo-expense-tracker-v2'; // Bumped version to ensure new SW is installed
 // This list includes all the essential files for the app to work offline.
 const URLS_TO_CACHE = [
   '/',
@@ -23,17 +22,12 @@ const URLS_TO_CACHE = [
   '/pages/ExpensePage.tsx',
   '/pages/IncomePage.tsx',
   '/pages/SegmentsPage.tsx',
-  '/contexts/AuthContext.tsx',
-  '/pages/AccountPage.tsx',
-  '/components/ProtectedRoute.tsx',
   '/components/SyncStatus.tsx',
-  '/components/icons/AccountIcon.tsx',
   '/components/icons/CalculatorIcon.tsx',
   '/components/icons/CloudOfflineIcon.tsx',
   '/components/icons/DashboardIcon.tsx',
   '/components/icons/EditIcon.tsx',
   '/components/icons/ExpenseIcon.tsx',
-  '/components/icons/GoogleIcon.tsx',
   '/components/icons/IncomeIcon.tsx',
   '/components/icons/ListIcon.tsx',
   '/components/icons/MoonIcon.tsx',
@@ -42,6 +36,7 @@ const URLS_TO_CACHE = [
   '/components/icons/SyncIcon.tsx',
   '/components/icons/SystemIcon.tsx',
   '/components/icons/TrashIcon.tsx',
+  '/components/icons/SearchIcon.tsx',
   // Caching external resources loaded via CDN
   'https://cdn.tailwindcss.com',
   'https://aistudiocdn.com/react@^19.2.0',
@@ -59,7 +54,11 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('Opened cache and caching app shell');
-        return cache.addAll(URLS_TO_CACHE);
+        // Use {cache: 'reload'} to bypass HTTP cache for these resources
+        const cachePromises = URLS_TO_CACHE.map(url => {
+          return cache.add(new Request(url, {cache: 'reload'})).catch(err => console.warn(`Failed to cache ${url}:`, err));
+        });
+        return Promise.all(cachePromises);
       })
   );
 });
@@ -91,17 +90,28 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((response) => {
       // If we have a response in cache, return it.
+      if (response) {
+        return response;
+      }
+
       // Otherwise, fetch from the network.
-      return response || fetch(event.request).then(networkResponse => {
+      return fetch(event.request).then(networkResponse => {
         // Optional: Cache the new resource for next time.
         // This is useful for resources not in the initial cache list.
         if (networkResponse && networkResponse.status === 200) {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseToCache);
-          });
+          // Check if it's a CDN resource before caching dynamically
+          if (event.request.url.startsWith('https://aistudiocdn.com') || event.request.url.startsWith('https://cdn.tailwindcss.com')) {
+             const responseToCache = networkResponse.clone();
+             caches.open(CACHE_NAME).then(cache => {
+               cache.put(event.request, responseToCache);
+             });
+          }
         }
         return networkResponse;
+      }).catch(error => {
+        console.error('Fetching failed:', error);
+        // You could return a custom offline page here if needed.
+        throw error;
       });
     })
   );

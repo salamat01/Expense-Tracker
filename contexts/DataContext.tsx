@@ -1,40 +1,45 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { Income, Expense, Segment, SyncAction, AppData } from '../types';
-import { useAuth } from './AuthContext';
 
-// --- Mock Google Drive API ---
-const GDRIVE_API_DELAY = 1500; // ms
+// --- Mock Cloud Sync API ---
+const CLOUD_API_DELAY = 1500; // ms
+const MOCK_USER_ID = 'main_user'; // Static user ID for the simulation
 
-const gdriveApi = {
-  // Simulates creating a folder and file in Google Drive
+const cloudSyncApi = {
+  // Simulates saving data to a generic cloud file storage
   async saveData(userId: string, data: AppData): Promise<void> {
     return new Promise(resolve => {
       setTimeout(() => {
-        const gdriveKey = `gdrive_mock_${userId}`;
-        console.log(`[GDRIVE] Saving data to Drive for user ${userId}...`);
-        localStorage.setItem(gdriveKey, JSON.stringify(data));
-        console.log('[GDRIVE] Save successful.');
+        const cloudKey = `cloud_sync_mock_${userId}`;
+        console.log(`[CLOUDSYNC] Saving data to the cloud for user ${userId}...`);
+        localStorage.setItem(cloudKey, JSON.stringify(data));
+        console.log('[CLOUDSYNC] Save successful.');
         resolve();
-      }, GDRIVE_API_DELAY);
+      }, CLOUD_API_DELAY);
     });
   },
 
-  // Simulates fetching data from the file in Google Drive
+  // Simulates fetching data from the cloud
   async fetchData(userId: string): Promise<AppData | null> {
     return new Promise(resolve => {
       setTimeout(() => {
-        const gdriveKey = `gdrive_mock_${userId}`;
-        console.log(`[GDRIVE] Fetching data from Drive for user ${userId}...`);
-        const savedData = localStorage.getItem(gdriveKey);
+        const cloudKey = `cloud_sync_mock_${userId}`;
+        console.log(`[CLOUDSYNC] Fetching data from the cloud for user ${userId}...`);
+        const savedData = localStorage.getItem(cloudKey);
         if (savedData) {
-          console.log('[GDRIVE] Data found.');
-          resolve(JSON.parse(savedData));
+          try {
+            console.log('[CLOUDSYNC] Data found.');
+            resolve(JSON.parse(savedData));
+          } catch (e) {
+             console.error('[CLOUDSYNC] Failed to parse cloud data.', e);
+             resolve(null);
+          }
         } else {
-          console.log('[GDRIVE] No data found for this user in Drive.');
+          console.log('[CLOUDSYNC] No data found for this user in the cloud.');
           resolve(null);
         }
-      }, GDRIVE_API_DELAY);
+      }, CLOUD_API_DELAY);
     });
   }
 };
@@ -67,13 +72,15 @@ const getLocalData = <T,>(key: string, fallback: T) => {
         const item = localStorage.getItem(key);
         return item ? JSON.parse(item) : fallback;
     } catch (e) {
+        console.error(`Failed to parse local data for key "${key}"`, e);
         return fallback;
     }
 }
 
+const localDataKey = `localData_main`;
+const syncQueueKey = `syncQueue_main`;
+
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser } = useAuth();
-  
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [segments, setSegments] = useState<Segment[]>([]);
@@ -82,53 +89,56 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isSyncing, setIsSyncing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const localDataKey = currentUser ? `localData_${currentUser.id}` : null;
-  const syncQueueKey = currentUser ? `syncQueue_${currentUser.id}` : null;
-
-  // Load initial data and handle user changes
+  // Load initial data
   useEffect(() => {
     const loadData = async () => {
-      if (!currentUser || !localDataKey) {
-        setIncomes([]);
-        setExpenses([]);
-        setSegments([]);
-        setIsLoading(false);
-        return;
-      }
-
       setIsLoading(true);
 
-      const defaultColors = ['#38BDF8', '#FBBF24', '#22C55E', '#8B5CF6', '#EC4899', '#EF4444'];
-      const assignDefaultColors = (segs: (Omit<Segment, 'color'> & { color?: string, id: string, name: string, allocatedAmount: number })[]): Segment[] => {
+      // This function ensures data is always in a valid format, preventing crashes from corrupted storage.
+      const validateAndCleanData = (data: AppData | null): AppData => {
+        if (!data || typeof data !== 'object') {
+          return { incomes: [], expenses: [], segments: [] };
+        }
+        // Ensure each item is an array and filter out any null/undefined entries
+        const cleanIncomes = (Array.isArray(data.incomes) ? data.incomes : []).filter(Boolean);
+        const cleanExpenses = (Array.isArray(data.expenses) ? data.expenses : []).filter(Boolean);
+        const cleanSegments = (Array.isArray(data.segments) ? data.segments : []).filter(Boolean);
+        
+        return { incomes: cleanIncomes, expenses: cleanExpenses, segments: cleanSegments };
+      };
+      
+      const assignDefaultColors = (segs: Segment[]): Segment[] => {
+          const defaultColors = ['#38BDF8', '#FBBF24', '#22C55E', '#8B5CF6', '#EC4899', '#EF4444'];
           return segs.map((s, index) => ({
               ...s,
               color: s.color || defaultColors[index % defaultColors.length]
           }));
       };
       
-      // Try fetching from "Google Drive" first
-      const driveData = await gdriveApi.fetchData(currentUser.id);
-      
-      if (driveData) {
-        const coloredSegments = assignDefaultColors(driveData.segments);
-        setIncomes(driveData.incomes);
-        setExpenses(driveData.expenses);
-        setSegments(coloredSegments);
-        localStorage.setItem(localDataKey, JSON.stringify({...driveData, segments: coloredSegments}));
+      const cloudData = await cloudSyncApi.fetchData(MOCK_USER_ID);
+      let finalData: AppData;
+
+      if (cloudData) {
+        finalData = validateAndCleanData(cloudData);
       } else {
-        // Fallback to local data if Drive is empty (e.g., first-time user on this device)
         const local = getLocalData<AppData | null>(localDataKey, null);
-        if (local) {
-          setIncomes(local.incomes);
-          setExpenses(local.expenses);
-          setSegments(assignDefaultColors(local.segments));
-        }
+        finalData = validateAndCleanData(local);
       }
+
+      const coloredSegments = assignDefaultColors(finalData.segments);
+      
+      setIncomes(finalData.incomes);
+      setExpenses(finalData.expenses);
+      setSegments(coloredSegments);
+      
+      // Save the cleaned data back to local storage to fix any corruption for the next load.
+      localStorage.setItem(localDataKey, JSON.stringify({ ...finalData, segments: coloredSegments }));
+      
       setIsLoading(false);
     };
 
     loadData();
-  }, [currentUser, localDataKey]);
+  }, []);
 
 
   // Effect for online/offline status
@@ -143,9 +153,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
   
-  // The main sync processing logic
   const processSyncQueue = useCallback(async () => {
-    if (!isOnline || isSyncing || !currentUser || !syncQueueKey) return;
+    if (!isOnline || isSyncing) return;
     
     const queue = getLocalData<SyncAction[]>(syncQueueKey, []);
     if (queue.length === 0) return;
@@ -153,18 +162,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsSyncing(true);
     console.log(`[SYNC] Starting sync for ${queue.length} item(s).`);
 
-    // 1. Fetch latest data from Drive to avoid overwriting changes from other devices
-    let currentDriveData = await gdriveApi.fetchData(currentUser.id) || { incomes: [], expenses: [], segments: [] };
+    let currentCloudData = await cloudSyncApi.fetchData(MOCK_USER_ID) || { incomes: [], expenses: [], segments: [] };
     
-    // 2. Apply queued changes
     queue.forEach(action => {
       console.log(`[SYNC] Processing action: ${action.type} ${action.dataType}`);
       const { dataType, type, payload } = action;
       let dataArray;
       switch(dataType) {
-        case 'income': dataArray = currentDriveData.incomes; break;
-        case 'expense': dataArray = currentDriveData.expenses; break;
-        case 'segment': dataArray = currentDriveData.segments; break;
+        case 'income': dataArray = currentCloudData.incomes; break;
+        case 'expense': dataArray = currentCloudData.expenses; break;
+        case 'segment': dataArray = currentCloudData.segments; break;
+        default: return;
       }
       
       if (type === 'add') {
@@ -172,39 +180,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else if (type === 'update') {
         const index = dataArray.findIndex(item => item.id === payload.id);
         if (index > -1) dataArray[index] = payload;
-        else dataArray.push(payload); // If not found, add it
+        else dataArray.push(payload);
       } else if (type === 'delete') {
         const index = dataArray.findIndex(item => item.id === payload.id);
         if (index > -1) dataArray.splice(index, 1);
       }
     });
 
-    // 3. Save merged data back to Drive
-    await gdriveApi.saveData(currentUser.id, currentDriveData);
+    await cloudSyncApi.saveData(MOCK_USER_ID, currentCloudData);
 
-    // 4. Update local state with the synced data
-    setIncomes(currentDriveData.incomes);
-    setExpenses(currentDriveData.expenses);
-    setSegments(currentDriveData.segments);
+    setIncomes(currentCloudData.incomes);
+    setExpenses(currentCloudData.expenses);
+    setSegments(currentCloudData.segments);
     
-    // 5. Clear the sync queue
     localStorage.removeItem(syncQueueKey);
     
     console.log('[SYNC] Sync completed successfully.');
     setIsSyncing(false);
-  }, [isOnline, isSyncing, currentUser, syncQueueKey]);
+  }, [isOnline, isSyncing]);
 
-  // Effect to trigger sync when coming online
   useEffect(() => {
     if (isOnline) {
       processSyncQueue();
     }
   }, [isOnline, processSyncQueue]);
 
-  // Helper for all state updates
   const updateStateAndSync = useCallback((updateFn: (prev: AppData) => AppData, syncAction: Omit<SyncAction, 'id'>) => {
-    if (!localDataKey || !currentUser) return;
-    
     const appData = { incomes, expenses, segments };
     const newState = updateFn(appData);
 
@@ -214,19 +215,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(localDataKey, JSON.stringify(newState));
 
     if (isOnline) {
-      // If online, save directly to Drive
-      gdriveApi.saveData(currentUser.id, newState);
+      cloudSyncApi.saveData(MOCK_USER_ID, newState);
     } else {
-      // If offline, add to queue
-      if(syncQueueKey) {
-        const queue = getLocalData<SyncAction[]>(syncQueueKey, []);
-        queue.push({ ...syncAction, id: Date.now().toString() });
-        localStorage.setItem(syncQueueKey, JSON.stringify(queue));
-      }
+      const queue = getLocalData<SyncAction[]>(syncQueueKey, []);
+      queue.push({ ...syncAction, id: Date.now().toString() });
+      localStorage.setItem(syncQueueKey, JSON.stringify(queue));
     }
-  }, [incomes, expenses, segments, isOnline, currentUser, localDataKey, syncQueueKey]);
+  }, [incomes, expenses, segments, isOnline]);
 
-  // CRUD Functions
   const addIncome = (income: Omit<Income, 'id'>) => {
     const newIncome = { ...income, id: Date.now().toString() };
     updateStateAndSync(

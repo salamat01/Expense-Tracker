@@ -1,4 +1,3 @@
-
 export interface Income {
   id: string;
   title: string;
@@ -7,7 +6,7 @@ export interface Income {
 }
 
 export interface Expense {
-  id: string;
+  id:string;
   title: string;
   amount: number;
   dateTime: string;
@@ -21,10 +20,11 @@ export interface Segment {
   color: string;
 }
 
+// Fix: Add User interface for authentication.
 export interface User {
   id: string;
-  email: string;
   name: string;
+  email: string;
   picture: string;
 }
 
@@ -39,7 +39,7 @@ export interface SyncAction {
   payload: any; // The actual data (Income, Expense, Segment) or just an ID for delete
 }
 
-// Structure for the data saved to Google Drive
+// Structure for the data saved to the cloud
 export interface AppData {
   incomes: Income[];
   expenses: Expense[];

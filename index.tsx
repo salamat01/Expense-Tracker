@@ -3,7 +3,6 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import App from './App';
-import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { DataProvider } from './contexts/DataContext';
 
@@ -17,11 +16,9 @@ root.render(
   <React.StrictMode>
     <HashRouter>
       <ThemeProvider>
-        <AuthProvider>
-          <DataProvider>
-            <App />
-          </DataProvider>
-        </AuthProvider>
+        <DataProvider>
+          <App />
+        </DataProvider>
       </ThemeProvider>
     </HashRouter>
   </React.StrictMode>
