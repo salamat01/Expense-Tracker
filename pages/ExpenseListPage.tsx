@@ -44,7 +44,7 @@ const ExpenseListPage: React.FC = () => {
                 <div className="flex-1">
                   <p className="font-semibold text-lg text-gray-800 dark:text-gray-200">{expense.title}</p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {new Date(expense.dateTime).toLocaleString()}
+                    {`${new Date(expense.dateTime).toLocaleString('en-US', { timeZone: 'Asia/Dhaka', dateStyle: 'medium', timeStyle: 'short' })} BST`}
                   </p>
                   <span className="text-xs bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 px-2 py-1 rounded-full mt-1 inline-block font-medium">
                     {getSegmentName(expense.segmentId)}

@@ -218,7 +218,7 @@ const SegmentsPage: React.FC = () => {
                           <li key={exp.id} className="flex justify-between items-center text-sm">
                             <div>
                               <p className="text-gray-700 dark:text-gray-300">{exp.title}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(exp.dateTime).toLocaleDateString()}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(exp.dateTime).toLocaleString('en-US', { timeZone: 'Asia/Dhaka', dateStyle: 'short', timeStyle: 'short' })}</p>
                             </div>
                             <p className="font-mono text-red-600">- {exp.amount.toLocaleString()} BDT</p>
                           </li>

@@ -4,6 +4,29 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import ListIcon from '../components/icons/ListIcon';
 
+// Helper to get current date/time string in BST for input[type=datetime-local]
+const getBstNowForInput = () => {
+    const now = new Date();
+    const options: Intl.DateTimeFormatOptions = { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false };
+    // Use 'en-CA' locale for a YYYY-MM-DD format, which is less ambiguous than other locales
+    const formatter = new Intl.DateTimeFormat('en-CA', options);
+    const parts = formatter.formatToParts(now).reduce((acc, part) => ({...acc, [part.type]: part.value}), {} as Record<Intl.DateTimeFormatPartTypes, string>);
+    // Intl.DateTimeFormat can return '24' for the hour at midnight, which is invalid for inputs
+    if (parts.hour === '24') parts.hour = '00';
+    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+};
+
+// Helper to convert a UTC ISO string to a BST string for the datetime-local input
+const convertUtcToBstForInput = (utcString: string) => {
+    const date = new Date(utcString);
+    const options: Intl.DateTimeFormatOptions = { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false };
+    const formatter = new Intl.DateTimeFormat('en-CA', options);
+    const parts = formatter.formatToParts(date).reduce((acc, part) => ({...acc, [part.type]: part.value}), {} as Record<Intl.DateTimeFormatPartTypes, string>);
+    if (parts.hour === '24') parts.hour = '00';
+    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
+
 const ExpensePage: React.FC = () => {
   const navigate = useNavigate();
   const { expenseId } = useParams<{ expenseId: string }>();
@@ -13,6 +36,33 @@ const ExpensePage: React.FC = () => {
   const totalIncome = incomes.reduce((sum, i) => sum + i.amount, 0);
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
   const remainingBalance = totalIncome - totalExpenses;
+
+  const [title, setTitle] = useState('');
+  const [amount, setAmount] = useState('');
+  const [dateTime, setDateTime] = useState(getBstNowForInput());
+  const [segmentId, setSegmentId] = useState<string>('');
+  
+  useEffect(() => {
+    if (isEditMode && expenseId) {
+      const expenseToEdit = expenses.find(e => e.id === expenseId);
+      if (expenseToEdit) {
+        setTitle(expenseToEdit.title);
+        setAmount(String(expenseToEdit.amount));
+        setDateTime(convertUtcToBstForInput(expenseToEdit.dateTime));
+        setSegmentId(expenseToEdit.segmentId);
+      }
+    } else {
+        // This block handles both the initial render for a new expense
+        // and resetting the form when navigating away from an edit page.
+        setTitle('');
+        setAmount('');
+        setDateTime(getBstNowForInput());
+        if (segments.length > 0) {
+            setSegmentId(segments[0].id);
+        }
+    }
+  }, [isEditMode, expenseId, expenses, segments]);
+
 
   if (segments.length === 0 && !isEditMode) {
     return (
@@ -29,32 +79,14 @@ const ExpensePage: React.FC = () => {
     );
   }
 
-  const [title, setTitle] = useState('');
-  const [amount, setAmount] = useState('');
-  const [dateTime, setDateTime] = useState(new Date().toISOString().slice(0, 16));
-  const [segmentId, setSegmentId] = useState<string>(segments[0]?.id || '');
-
-  useEffect(() => {
-    if (isEditMode && expenseId) {
-      const expenseToEdit = expenses.find(e => e.id === expenseId);
-      if (expenseToEdit) {
-        setTitle(expenseToEdit.title);
-        setAmount(String(expenseToEdit.amount));
-        const localDateTime = new Date(expenseToEdit.dateTime).toISOString().slice(0, 16);
-        setDateTime(localDateTime);
-        setSegmentId(expenseToEdit.segmentId);
-      }
-    } else {
-        if (segments.length > 0 && !segmentId) {
-            setSegmentId(segments[0].id);
-        }
-    }
-  }, [isEditMode, expenseId, expenses, segments, segmentId]);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (title && amount && dateTime && segmentId) {
-      const expenseData = { title, amount: parseFloat(amount), dateTime, segmentId };
+      // The dateTime string from the input is treated as BST.
+      // Append the BST offset and convert to a standardized UTC ISO string for storage.
+      const utcDateTime = new Date(`${dateTime}:00+06:00`).toISOString();
+      const expenseData = { title, amount: parseFloat(amount), dateTime: utcDateTime, segmentId };
+
       if (isEditMode && expenseId) {
         updateExpense(expenseId, expenseData);
         navigate('/expenses-list');
@@ -62,6 +94,7 @@ const ExpensePage: React.FC = () => {
         addExpense(expenseData);
         setTitle('');
         setAmount('');
+        setDateTime(getBstNowForInput()); // Reset time for next entry
       }
     }
   };
@@ -128,7 +161,7 @@ const ExpensePage: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="expense-datetime" className="block text-sm font-medium text-gray-600 dark:text-gray-400">Date and Time</label>
+            <label htmlFor="expense-datetime" className="block text-sm font-medium text-gray-600 dark:text-gray-400">Date and Time (BST)</label>
             <input
               id="expense-datetime"
               type="datetime-local"

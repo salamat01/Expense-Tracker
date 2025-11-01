@@ -143,7 +143,7 @@ const DashboardPage: React.FC = () => {
             startY: (doc as any).lastAutoTable.finalY + (filteredIncomes.length > 0 ? 10 : 15),
             head: [['Date', 'Title', 'Segment', 'Amount (BDT)']],
             body: filteredExpenses.map(e => [
-                new Date(e.dateTime).toLocaleString(),
+                new Date(e.dateTime).toLocaleString('en-US', { timeZone: 'Asia/Dhaka' }),
                 e.title,
                 getSegmentName(e.segmentId),
                 `- ${e.amount.toLocaleString()}`,
