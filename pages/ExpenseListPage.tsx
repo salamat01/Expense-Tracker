@@ -41,33 +41,38 @@ const ExpenseListPage: React.FC = () => {
             {sortedExpenses.map(expense => {
               const segment = getSegment(expense.segmentId);
               return (
-                <li key={expense.id} className="py-4 flex justify-between items-center">
-                  <div className="flex-1">
-                    <p className="font-semibold text-lg text-gray-800 dark:text-gray-200">{expense.title}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                <li key={expense.id} className="py-3 flex justify-between items-center">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-base text-gray-800 dark:text-gray-200 truncate">{expense.title}</p>
+                      {segment ? (
+                         <span 
+                           className="text-xs px-2 py-0.5 rounded-full font-bold flex-shrink-0"
+                           style={{ backgroundColor: `${segment.color}20`, color: segment.color }}
+                         >
+                           {segment.name}
+                         </span>
+                      ) : (
+                        <span className="text-xs bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full font-bold flex-shrink-0">
+                          Unknown
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       {`${new Date(expense.dateTime).toLocaleString('en-US', { timeZone: 'Asia/Dhaka', dateStyle: 'medium', timeStyle: 'short' })} BST`}
                     </p>
-                    {segment ? (
-                       <span 
-                         className="text-xs px-2 py-1 rounded-full mt-1 inline-block font-medium"
-                         style={{ backgroundColor: `${segment.color}20`, color: segment.color }}
-                       >
-                         {segment.name}
-                       </span>
-                    ) : (
-                      <span className="text-xs bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 px-2 py-1 rounded-full mt-1 inline-block font-medium">
-                        Unknown
-                      </span>
-                    )}
                   </div>
-                  <div className="text-right flex items-center space-x-2">
-                     <p className="font-bold text-lg text-red-600 mr-2">
-                      - {expense.amount.toLocaleString()} BDT
-                    </p>
-                    <button onClick={() => navigate(`/edit-expense/${expense.id}`)} className="text-gray-500 dark:text-gray-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Edit expense">
+                  <div className="flex items-center space-x-2">
+                    <div className="flex items-baseline gap-1 text-right">
+                        <p className="font-bold text-base text-red-600">
+                        - {expense.amount.toLocaleString()}
+                        </p>
+                        <span className="text-xs text-red-500/80">BDT</span>
+                    </div>
+                    <button onClick={() => navigate(`/edit-expense/${expense.id}`)} className="text-gray-500 dark:text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 flex-shrink-0" aria-label="Edit expense">
                       <EditIcon />
                     </button>
-                    <button onClick={() => handleDelete(expense.id)} className="text-gray-500 dark:text-gray-400 hover:text-brand-secondary transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Delete expense">
+                    <button onClick={() => handleDelete(expense.id)} className="text-gray-500 dark:text-gray-400 hover:text-brand-secondary transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 flex-shrink-0" aria-label="Delete expense">
                       <TrashIcon />
                     </button>
                   </div>

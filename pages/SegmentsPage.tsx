@@ -7,6 +7,19 @@ import TrashIcon from '../components/icons/TrashIcon';
 import CalculatorIcon from '../components/icons/CalculatorIcon';
 import Calculator from '../components/Calculator';
 
+const PRESET_COLORS = [
+  '#EF4444', '#F43F5E', '#EC4899', '#D946EF', '#8B5CF6', '#6366F1',
+  '#4F46E5', '#3B82F6', '#38BDF8', '#0EA5E9', '#06B6D4', '#14B8A6',
+  '#10B981', '#22C55E', '#84CC16', '#FBBF24', '#F59E0B', '#F97316',
+  '#64748B', '#9CA3AF', '#71717A', '#475569'
+];
+
+const CheckIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+);
+
 const SegmentsPage: React.FC = () => {
   const { segments, expenses, incomes, addSegment, updateSegment, deleteSegment } = useData();
   const totalIncome = incomes.reduce((sum, i) => sum + i.amount, 0);
@@ -18,6 +31,7 @@ const SegmentsPage: React.FC = () => {
   const [expandedSegmentId, setExpandedSegmentId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isCalculatorVisible, setIsCalculatorVisible] = useState(false);
+  const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
 
   const totalAllocated = useMemo(() => segments.reduce((sum, s) => sum + s.allocatedAmount, 0), [segments]);
   const unallocatedIncome = totalIncome - totalAllocated;
@@ -77,6 +91,7 @@ const SegmentsPage: React.FC = () => {
     setAllocatedAmount('');
     setColor('#38BDF8');
     setValidationError(null);
+    setIsColorPickerOpen(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -94,6 +109,7 @@ const SegmentsPage: React.FC = () => {
         setName('');
         setAllocatedAmount('');
         setColor('#38BDF8');
+        setIsColorPickerOpen(false);
       }
     }
   };
@@ -138,6 +154,13 @@ const SegmentsPage: React.FC = () => {
               <div>
                 <label htmlFor="segment-name" className="block text-sm font-medium text-gray-600 dark:text-gray-400">Segment Name</label>
                 <div className="relative mt-1">
+                   <button
+                    type="button"
+                    onClick={() => setIsColorPickerOpen(prev => !prev)}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border border-gray-300 dark:border-gray-600 transition-transform transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-segment dark:focus:ring-offset-gray-800"
+                    style={{ backgroundColor: color }}
+                    aria-label="Toggle color picker"
+                  />
                    <input
                     id="segment-name"
                     type="text"
@@ -147,15 +170,32 @@ const SegmentsPage: React.FC = () => {
                     required
                     className="block w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 pl-12 text-gray-900 dark:text-white focus:outline-none focus:ring-brand-segment focus:border-brand-segment"
                   />
-                   <input
-                     type="color"
-                     value={color}
-                     onChange={(e) => setColor(e.target.value)}
-                     className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 p-1 bg-transparent border-none cursor-pointer"
-                     title="Choose segment color"
-                   />
                 </div>
               </div>
+
+              {isColorPickerOpen && (
+                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">Select a Color</label>
+                  <div className="grid grid-cols-7 sm:grid-cols-11 gap-2">
+                      {PRESET_COLORS.map((presetColor) => (
+                          <button
+                              type="button"
+                              key={presetColor}
+                              onClick={() => {
+                                setColor(presetColor);
+                                setIsColorPickerOpen(false);
+                              }}
+                              className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform transform hover:scale-110 ${color === presetColor ? 'ring-2 ring-offset-2 ring-brand-primary dark:ring-offset-gray-800' : 'ring-1 ring-gray-300 dark:ring-gray-600 ring-inset'}`}
+                              style={{ backgroundColor: presetColor }}
+                              aria-label={`Select color ${presetColor}`}
+                          >
+                              {color === presetColor && <CheckIcon />}
+                          </button>
+                      ))}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label htmlFor="segment-amount" className="block text-sm font-medium text-gray-600 dark:text-gray-400">Allocated Amount (BDT)</label>
                 <input
