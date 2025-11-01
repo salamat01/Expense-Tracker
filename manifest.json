@@ -1,0 +1,16 @@
+{
+  "name": "Shuvo Expense Tracker",
+  "short_name": "Shuvo Tracker",
+  "description": "A daily expense and income tracking application with budgeting segments and insightful dashboards. Manage your finances with an intuitive, eye-catching interface.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F8F7F4",
+  "theme_color": "#3B82F6",
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
