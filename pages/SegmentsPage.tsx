@@ -109,69 +109,74 @@ const SegmentsPage: React.FC = () => {
       <div className="space-y-8">
         <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-sky-500 to-cyan-500 text-transparent bg-clip-text">Budget Segments</h1>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-          <div className="bg-brand-surface dark:bg-gray-800 p-3 rounded-xl shadow-md">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Income</h3>
-            <p className="text-xl font-bold text-green-600">{totalIncome.toLocaleString()} BDT</p>
-          </div>
-          <div className="bg-brand-surface dark:bg-gray-800 p-3 rounded-xl shadow-md">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Allocated</h3>
-            <p className="text-xl font-bold text-yellow-600">{totalAllocated.toLocaleString()} BDT</p>
-          </div>
-          <div className="bg-brand-surface dark:bg-gray-800 p-3 rounded-xl shadow-md">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Unallocated</h3>
-            <p className={`text-xl font-bold ${unallocatedIncome >= 0 ? 'text-blue-600 dark:text-sky-400' : 'text-red-600'}`}>{unallocatedIncome.toLocaleString()} BDT</p>
-          </div>
-        </div>
-        
-        <div className="bg-brand-surface dark:bg-gray-800 p-6 rounded-xl shadow-md">
-          <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-300">{editingSegment ? 'Edit Segment' : 'Create New Segment'}</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="segment-name" className="block text-sm font-medium text-gray-600 dark:text-gray-400">Segment Name</label>
-              <input
-                id="segment-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Groceries"
-                required
-                className="mt-1 block w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-brand-segment focus:border-brand-segment"
-              />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 hidden lg:block">Financial Overview</h2>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="bg-brand-surface dark:bg-gray-800 p-3 rounded-xl shadow-md flex flex-col items-center justify-center aspect-square">
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 leading-tight">Total Income</h3>
+                <p className="text-xl font-bold text-green-600 mt-1">{totalIncome.toLocaleString()} BDT</p>
+              </div>
+              <div className="bg-brand-surface dark:bg-gray-800 p-3 rounded-xl shadow-md flex flex-col items-center justify-center aspect-square">
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 leading-tight">Total Allocated</h3>
+                <p className="text-xl font-bold text-yellow-600 mt-1">{totalAllocated.toLocaleString()} BDT</p>
+              </div>
+              <div className="bg-brand-surface dark:bg-gray-800 p-3 rounded-xl shadow-md flex flex-col items-center justify-center aspect-square">
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 leading-tight">Unallocated</h3>
+                <p className={`text-xl font-bold ${unallocatedIncome >= 0 ? 'text-blue-600 dark:text-sky-400' : 'text-red-600'} mt-1`}>{unallocatedIncome.toLocaleString()} BDT</p>
+              </div>
             </div>
-            <div>
-              <label htmlFor="segment-amount" className="block text-sm font-medium text-gray-600 dark:text-gray-400">Allocated Amount (BDT)</label>
-              <input
-                id="segment-amount"
-                type="number"
-                value={allocatedAmount}
-                onChange={(e) => setAllocatedAmount(e.target.value)}
-                placeholder="0.00"
-                required
-                min="0"
-                className="mt-1 block w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-brand-segment focus:border-brand-segment"
-              />
-              {validationError && <p className="mt-2 text-sm text-red-600">{validationError}</p>}
-            </div>
-            <div className="flex gap-4">
-              <button
-                type="submit"
-                disabled={!!validationError}
-                className="w-full bg-gradient-to-r from-brand-segment to-sky-400 hover:from-sky-400 hover:to-brand-segment text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:bg-gray-400 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed disabled:transform-none"
-              >
-                {editingSegment ? 'Update Segment' : 'Create Segment'}
-              </button>
-              {editingSegment && (
+          </div>
+          
+          <div className="bg-brand-surface dark:bg-gray-800 p-6 rounded-xl shadow-md">
+            <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-300">{editingSegment ? 'Edit Segment' : 'Create New Segment'}</h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="segment-name" className="block text-sm font-medium text-gray-600 dark:text-gray-400">Segment Name</label>
+                <input
+                  id="segment-name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g., Groceries"
+                  required
+                  className="mt-1 block w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-brand-segment focus:border-brand-segment"
+                />
+              </div>
+              <div>
+                <label htmlFor="segment-amount" className="block text-sm font-medium text-gray-600 dark:text-gray-400">Allocated Amount (BDT)</label>
+                <input
+                  id="segment-amount"
+                  type="number"
+                  value={allocatedAmount}
+                  onChange={(e) => setAllocatedAmount(e.target.value)}
+                  placeholder="0.00"
+                  required
+                  min="0"
+                  className="mt-1 block w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-brand-segment focus:border-brand-segment"
+                />
+                {validationError && <p className="mt-2 text-sm text-red-600">{validationError}</p>}
+              </div>
+              <div className="flex gap-4">
                 <button
-                  type="button"
-                  onClick={handleCancelEdit}
-                  className="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+                  type="submit"
+                  disabled={!!validationError}
+                  className="w-full bg-gradient-to-r from-brand-segment to-sky-400 hover:from-sky-400 hover:to-brand-segment text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:bg-gray-400 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed disabled:transform-none"
                 >
-                  Cancel
+                  {editingSegment ? 'Update Segment' : 'Create Segment'}
                 </button>
-              )}
-            </div>
-          </form>
+                {editingSegment && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
         </div>
 
         <div className="space-y-4">

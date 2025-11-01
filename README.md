@@ -8,12 +8,6 @@ This contains everything you need to run your app locally.
 
 View your app in AI Studio: https://ai.studio/apps/drive/16r2G19SqqpzmSAZTzJ_Fej4AHXOQCxIN
 
-
-**Steps**
-1. Download the app zip file from google ai studio
-2. Make a new webapp from Netlify (Drop the zip in Netlify)
-3. Get a webapplink from netlify. Just use it or make a apk from webtoapk.com
-
 ## Run Locally
 
 **Prerequisites:**  Node.js

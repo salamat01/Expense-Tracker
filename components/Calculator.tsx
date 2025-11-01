@@ -194,9 +194,14 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
         <button onClick={onClose} className="text-gray-500 hover:text-red-500 dark:hover:text-red-400 font-bold text-2xl leading-none">&times;</button>
       </div>
       <div className="p-4 flex flex-col flex-grow min-h-0">
-        <div className="bg-gray-200 dark:bg-gray-900 text-right rounded-lg p-4 mb-4 font-mono break-all text-gray-900 dark:text-white flex items-end justify-end"
-             style={{ fontSize: `${Math.max(20, size.width / 8)}px`, minHeight: '60px' }}>
-          <span>{displayValue}</span>
+        <div className="bg-gray-200 dark:bg-gray-900 text-right rounded-lg p-4 mb-4 font-mono text-gray-900 dark:text-white flex flex-col justify-end"
+             style={{ minHeight: '80px' }}>
+          <div className="text-gray-500 dark:text-gray-400 break-words truncate" style={{ fontSize: `${Math.max(16, size.width / 16)}px`, minHeight: '24px' }}>
+            {firstOperand !== null && operator ? `${firstOperand} ${operator}` : ''}
+          </div>
+          <div className="break-all" style={{ fontSize: `${Math.max(20, size.width / 8)}px` }}>
+            {displayValue}
+          </div>
         </div>
         <div className="grid grid-cols-4 grid-rows-5 gap-2 flex-grow">
           <CalcButton onClick={clearDisplay} className="col-span-2 bg-red-400 hover:bg-red-500 dark:bg-red-600 dark:hover:bg-red-700 text-white" style={{ fontSize: buttonFontSize }}>C</CalcButton>
