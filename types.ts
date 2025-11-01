@@ -18,6 +18,7 @@ export interface Segment {
   id: string;
   name: string;
   allocatedAmount: number;
+  color: string;
 }
 
 export interface User {

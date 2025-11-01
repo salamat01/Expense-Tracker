@@ -9,9 +9,8 @@ const ExpenseListPage: React.FC = () => {
   const navigate = useNavigate();
   const { expenses, segments, deleteExpense } = useData();
 
-  const getSegmentName = (segmentId: string) => {
-    const segment = segments.find(s => s.id === segmentId);
-    return segment ? segment.name : 'Unknown Segment';
+  const getSegment = (segmentId: string) => {
+    return segments.find(s => s.id === segmentId);
   };
 
   const handleDelete = (id: string) => {
@@ -39,30 +38,42 @@ const ExpenseListPage: React.FC = () => {
           <p className="text-center text-gray-500 dark:text-gray-400 py-8">No expenses have been recorded yet.</p>
         ) : (
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-            {sortedExpenses.map(expense => (
-              <li key={expense.id} className="py-4 flex justify-between items-center">
-                <div className="flex-1">
-                  <p className="font-semibold text-lg text-gray-800 dark:text-gray-200">{expense.title}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {`${new Date(expense.dateTime).toLocaleString('en-US', { timeZone: 'Asia/Dhaka', dateStyle: 'medium', timeStyle: 'short' })} BST`}
-                  </p>
-                  <span className="text-xs bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 px-2 py-1 rounded-full mt-1 inline-block font-medium">
-                    {getSegmentName(expense.segmentId)}
-                  </span>
-                </div>
-                <div className="text-right flex items-center space-x-2">
-                   <p className="font-bold text-lg text-red-600 mr-2">
-                    - {expense.amount.toLocaleString()} BDT
-                  </p>
-                  <button onClick={() => navigate(`/edit-expense/${expense.id}`)} className="text-gray-500 dark:text-gray-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Edit expense">
-                    <EditIcon />
-                  </button>
-                  <button onClick={() => handleDelete(expense.id)} className="text-gray-500 dark:text-gray-400 hover:text-brand-secondary transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Delete expense">
-                    <TrashIcon />
-                  </button>
-                </div>
-              </li>
-            ))}
+            {sortedExpenses.map(expense => {
+              const segment = getSegment(expense.segmentId);
+              return (
+                <li key={expense.id} className="py-4 flex justify-between items-center">
+                  <div className="flex-1">
+                    <p className="font-semibold text-lg text-gray-800 dark:text-gray-200">{expense.title}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {`${new Date(expense.dateTime).toLocaleString('en-US', { timeZone: 'Asia/Dhaka', dateStyle: 'medium', timeStyle: 'short' })} BST`}
+                    </p>
+                    {segment ? (
+                       <span 
+                         className="text-xs px-2 py-1 rounded-full mt-1 inline-block font-medium"
+                         style={{ backgroundColor: `${segment.color}20`, color: segment.color }}
+                       >
+                         {segment.name}
+                       </span>
+                    ) : (
+                      <span className="text-xs bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 px-2 py-1 rounded-full mt-1 inline-block font-medium">
+                        Unknown
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right flex items-center space-x-2">
+                     <p className="font-bold text-lg text-red-600 mr-2">
+                      - {expense.amount.toLocaleString()} BDT
+                    </p>
+                    <button onClick={() => navigate(`/edit-expense/${expense.id}`)} className="text-gray-500 dark:text-gray-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Edit expense">
+                      <EditIcon />
+                    </button>
+                    <button onClick={() => handleDelete(expense.id)} className="text-gray-500 dark:text-gray-400 hover:text-brand-secondary transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Delete expense">
+                      <TrashIcon />
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

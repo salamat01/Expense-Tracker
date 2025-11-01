@@ -13,6 +13,7 @@ const SegmentsPage: React.FC = () => {
 
   const [name, setName] = useState('');
   const [allocatedAmount, setAllocatedAmount] = useState('');
+  const [color, setColor] = useState('#38BDF8');
   const [editingSegment, setEditingSegment] = useState<Segment | null>(null);
   const [expandedSegmentId, setExpandedSegmentId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -65,6 +66,7 @@ const SegmentsPage: React.FC = () => {
     if (editingSegment) {
       setName(editingSegment.name);
       setAllocatedAmount(String(editingSegment.allocatedAmount));
+      setColor(editingSegment.color);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [editingSegment]);
@@ -73,6 +75,7 @@ const SegmentsPage: React.FC = () => {
     setEditingSegment(null);
     setName('');
     setAllocatedAmount('');
+    setColor('#38BDF8');
     setValidationError(null);
   };
 
@@ -82,7 +85,7 @@ const SegmentsPage: React.FC = () => {
       return; // Prevent submission if there's a validation error
     }
     if (name && allocatedAmount) {
-      const segmentData = { name, allocatedAmount: parseFloat(allocatedAmount) };
+      const segmentData = { name, allocatedAmount: parseFloat(allocatedAmount), color };
       if (editingSegment) {
         updateSegment(editingSegment.id, segmentData);
         handleCancelEdit();
@@ -90,6 +93,7 @@ const SegmentsPage: React.FC = () => {
         addSegment(segmentData);
         setName('');
         setAllocatedAmount('');
+        setColor('#38BDF8');
       }
     }
   };
@@ -133,15 +137,24 @@ const SegmentsPage: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label htmlFor="segment-name" className="block text-sm font-medium text-gray-600 dark:text-gray-400">Segment Name</label>
-                <input
-                  id="segment-name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g., Groceries"
-                  required
-                  className="mt-1 block w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 text-gray-900 dark:text-white focus:outline-none focus:ring-brand-segment focus:border-brand-segment"
-                />
+                <div className="relative mt-1">
+                   <input
+                    id="segment-name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g., Groceries"
+                    required
+                    className="block w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 pl-12 text-gray-900 dark:text-white focus:outline-none focus:ring-brand-segment focus:border-brand-segment"
+                  />
+                   <input
+                     type="color"
+                     value={color}
+                     onChange={(e) => setColor(e.target.value)}
+                     className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 p-1 bg-transparent border-none cursor-pointer"
+                     title="Choose segment color"
+                   />
+                </div>
               </div>
               <div>
                 <label htmlFor="segment-amount" className="block text-sm font-medium text-gray-600 dark:text-gray-400">Allocated Amount (BDT)</label>
@@ -191,7 +204,7 @@ const SegmentsPage: React.FC = () => {
             const isExpanded = expandedSegmentId === segment.id;
 
             return (
-              <div key={segment.id} className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md transition-all duration-300">
+              <div key={segment.id} className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md transition-all duration-300 overflow-hidden" style={{ borderLeft: `5px solid ${segment.color}` }}>
                 <div className="p-4 cursor-pointer" onClick={() => toggleExpand(segment.id)}>
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">{segment.name}</h3>
@@ -203,7 +216,7 @@ const SegmentsPage: React.FC = () => {
                   <p className="text-sm text-gray-500 dark:text-gray-400">Allocated: {segment.allocatedAmount.toLocaleString()} BDT</p>
 
                   <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 my-2">
-                      <div className="bg-gradient-to-r from-brand-segment to-cyan-400 h-2.5 rounded-full" style={{ width: `${Math.min(percentage, 100)}%` }}></div>
+                      <div className="h-2.5 rounded-full" style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: segment.color }}></div>
                   </div>
 
                   <div className="flex justify-between text-sm mt-2 font-medium">

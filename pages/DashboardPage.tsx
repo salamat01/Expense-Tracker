@@ -5,8 +5,6 @@ import { useData } from '../contexts/DataContext';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
-const COLORS = ['#EF4444', '#38BDF8', '#FBBF24', '#22C55E', '#8B5CF6', '#EC4899'];
-
 const getMonthDateRange = () => {
   const start = new Date();
   start.setDate(1);
@@ -31,9 +29,9 @@ const DashboardPage: React.FC = () => {
   ];
 
   const segmentExpenseData = useMemo(() => {
-    const segmentMap: { [key: string]: { name: string; value: number } } = {};
+    const segmentMap: { [key: string]: { name: string; value: number; color: string } } = {};
     segments.forEach(s => {
-      segmentMap[s.id] = { name: s.name, value: 0 };
+      segmentMap[s.id] = { name: s.name, value: 0, color: s.color };
     });
 
     expenses.forEach(e => {
@@ -194,7 +192,7 @@ const DashboardPage: React.FC = () => {
                   stroke="var(--brand-surface-dark)"
                 >
                   {segmentExpenseData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <PieTooltip formatter={(value: number) => `${value.toLocaleString()} BDT`}/>

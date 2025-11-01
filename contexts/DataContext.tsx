@@ -51,7 +51,7 @@ interface DataContextType {
   addExpense: (expense: Omit<Expense, 'id'>) => void;
   updateExpense: (id: string, updatedExpense: Omit<Expense, 'id'>) => void;
   deleteExpense: (id: string) => void;
-  addSegment: (segment: Omit<Segment, 'id'>) => void;
+  addSegment: (segment: Omit<Segment, 'id' | 'color'> & {color?: string}) => void;
   updateSegment: (id: string, updatedSegment: Omit<Segment, 'id'>) => void;
   deleteSegment: (id: string) => void;
   isOnline: boolean;
@@ -97,22 +97,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       setIsLoading(true);
+
+      const defaultColors = ['#38BDF8', '#FBBF24', '#22C55E', '#8B5CF6', '#EC4899', '#EF4444'];
+      const assignDefaultColors = (segs: (Omit<Segment, 'color'> & { color?: string, id: string, name: string, allocatedAmount: number })[]): Segment[] => {
+          return segs.map((s, index) => ({
+              ...s,
+              color: s.color || defaultColors[index % defaultColors.length]
+          }));
+      };
       
       // Try fetching from "Google Drive" first
       const driveData = await gdriveApi.fetchData(currentUser.id);
       
       if (driveData) {
+        const coloredSegments = assignDefaultColors(driveData.segments);
         setIncomes(driveData.incomes);
         setExpenses(driveData.expenses);
-        setSegments(driveData.segments);
-        localStorage.setItem(localDataKey, JSON.stringify(driveData));
+        setSegments(coloredSegments);
+        localStorage.setItem(localDataKey, JSON.stringify({...driveData, segments: coloredSegments}));
       } else {
         // Fallback to local data if Drive is empty (e.g., first-time user on this device)
         const local = getLocalData<AppData | null>(localDataKey, null);
         if (local) {
           setIncomes(local.incomes);
           setExpenses(local.expenses);
-          setSegments(local.segments);
+          setSegments(assignDefaultColors(local.segments));
         }
       }
       setIsLoading(false);
