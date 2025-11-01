@@ -1,14 +1,9 @@
+
 import React, { useMemo, useState } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell, Tooltip as PieTooltip } from 'recharts';
-import type { Income, Expense, Segment } from '../types';
+import { useData } from '../contexts/DataContext';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-
-interface DashboardPageProps {
-  incomes: Income[];
-  expenses: Expense[];
-  segments: Segment[];
-}
 
 const COLORS = ['#EF4444', '#38BDF8', '#FBBF24', '#22C55E', '#8B5CF6', '#EC4899'];
 
@@ -22,7 +17,8 @@ const getMonthDateRange = () => {
   };
 };
 
-const DashboardPage: React.FC<DashboardPageProps> = ({ incomes, expenses, segments }) => {
+const DashboardPage: React.FC = () => {
+  const { incomes, expenses, segments } = useData();
   const { startDate: initialStartDate, endDate: initialEndDate } = getMonthDateRange();
   const [startDate, setStartDate] = useState(initialStartDate);
   const [endDate, setEndDate] = useState(initialEndDate);

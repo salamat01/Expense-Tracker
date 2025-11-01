@@ -1,15 +1,13 @@
+
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import ThemeToggleButton from './ThemeToggleButton';
 import SyncStatus from './SyncStatus';
+import { useData } from '../contexts/DataContext';
 
-interface HeaderProps {
-  isOnline: boolean;
-  isSyncing: boolean;
-}
-
-const Header: React.FC<HeaderProps> = ({ isOnline, isSyncing }) => {
+const Header: React.FC = () => {
   const { currentUser } = useAuth();
+  const { isOnline, isSyncing } = useData();
 
   return (
     <header className="fixed top-0 left-0 right-0 bg-brand-surface dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-md z-10">

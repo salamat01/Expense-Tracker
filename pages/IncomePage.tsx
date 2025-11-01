@@ -1,20 +1,18 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Income } from '../types';
+import { useData } from '../contexts/DataContext';
 import EditIcon from '../components/icons/EditIcon';
 import TrashIcon from '../components/icons/TrashIcon';
 import CalculatorIcon from '../components/icons/CalculatorIcon';
 import Calculator from '../components/Calculator';
 
-interface IncomePageProps {
-  addIncome: (income: { title: string; amount: number; date: string }) => void;
-  updateIncome: (id: string, income: { title: string; amount: number; date: string }) => void;
-  deleteIncome: (id: string) => void;
-  incomes: Income[];
-  totalIncome: number;
-  remainingBalance: number;
-}
+const IncomePage: React.FC = () => {
+  const { incomes, expenses, addIncome, updateIncome, deleteIncome } = useData();
+  const totalIncome = incomes.reduce((sum, i) => sum + i.amount, 0);
+  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const remainingBalance = totalIncome - totalExpenses;
 
-const IncomePage: React.FC<IncomePageProps> = ({ addIncome, updateIncome, deleteIncome, incomes, totalIncome, remainingBalance }) => {
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));

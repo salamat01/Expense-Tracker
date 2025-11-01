@@ -37,3 +37,10 @@ export interface SyncAction {
   dataType: DataType;
   payload: any; // The actual data (Income, Expense, Segment) or just an ID for delete
 }
+
+// Structure for the data saved to Google Drive
+export interface AppData {
+  incomes: Income[];
+  expenses: Expense[];
+  segments: Segment[];
+}

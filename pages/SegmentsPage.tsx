@@ -1,21 +1,16 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Segment, Expense } from '../types';
+import type { Segment } from '../types';
+import { useData } from '../contexts/DataContext';
 import EditIcon from '../components/icons/EditIcon';
 import TrashIcon from '../components/icons/TrashIcon';
 import CalculatorIcon from '../components/icons/CalculatorIcon';
 import Calculator from '../components/Calculator';
 
+const SegmentsPage: React.FC = () => {
+  const { segments, expenses, incomes, addSegment, updateSegment, deleteSegment } = useData();
+  const totalIncome = incomes.reduce((sum, i) => sum + i.amount, 0);
 
-interface SegmentsPageProps {
-  segments: Segment[];
-  addSegment: (segment: { name: string; allocatedAmount: number }) => void;
-  updateSegment: (id: string, segment: { name: string; allocatedAmount: number }) => void;
-  deleteSegment: (id: string) => void;
-  expenses: Expense[];
-  totalIncome: number;
-}
-
-const SegmentsPage: React.FC<SegmentsPageProps> = ({ segments, addSegment, updateSegment, deleteSegment, expenses, totalIncome }) => {
   const [name, setName] = useState('');
   const [allocatedAmount, setAllocatedAmount] = useState('');
   const [editingSegment, setEditingSegment] = useState<Segment | null>(null);

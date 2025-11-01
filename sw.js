@@ -1,3 +1,4 @@
+
 const CACHE_NAME = 'shuvo-expense-tracker-v1';
 // This list includes all the essential files for the app to work offline.
 const URLS_TO_CACHE = [
@@ -16,6 +17,7 @@ const URLS_TO_CACHE = [
   '/components/Header.tsx',
   '/components/ThemeToggleButton.tsx',
   '/contexts/ThemeContext.tsx',
+  '/contexts/DataContext.tsx',
   '/pages/DashboardPage.tsx',
   '/pages/ExpenseListPage.tsx',
   '/pages/ExpensePage.tsx',

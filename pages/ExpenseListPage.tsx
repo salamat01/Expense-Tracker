@@ -1,17 +1,13 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Expense, Segment } from '../types';
+import { useData } from '../contexts/DataContext';
 import EditIcon from '../components/icons/EditIcon';
 import TrashIcon from '../components/icons/TrashIcon';
 
-interface ExpenseListPageProps {
-  expenses: Expense[];
-  segments: Segment[];
-  deleteExpense: (id: string) => void;
-}
-
-const ExpenseListPage: React.FC<ExpenseListPageProps> = ({ expenses, segments, deleteExpense }) => {
+const ExpenseListPage: React.FC = () => {
   const navigate = useNavigate();
+  const { expenses, segments, deleteExpense } = useData();
 
   const getSegmentName = (segmentId: string) => {
     const segment = segments.find(s => s.id === segmentId);

@@ -1,21 +1,17 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { Segment, Expense } from '../types';
+import { useData } from '../contexts/DataContext';
 import ListIcon from '../components/icons/ListIcon';
 
-interface ExpensePageProps {
-  segments: Segment[];
-  expenses: Expense[];
-  addExpense: (expense: Omit<Expense, 'id'>) => void;
-  updateExpense: (id: string, expense: Omit<Expense, 'id'>) => void;
-  totalIncome: number;
-  totalExpenses: number;
-}
-
-const ExpensePage: React.FC<ExpensePageProps> = ({ segments, expenses, addExpense, updateExpense, totalIncome, totalExpenses }) => {
+const ExpensePage: React.FC = () => {
   const navigate = useNavigate();
   const { expenseId } = useParams<{ expenseId: string }>();
+  const { segments, expenses, addExpense, updateExpense, incomes } = useData();
+
   const isEditMode = Boolean(expenseId);
+  const totalIncome = incomes.reduce((sum, i) => sum + i.amount, 0);
+  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
   const remainingBalance = totalIncome - totalExpenses;
 
   if (segments.length === 0 && !isEditMode) {
@@ -49,11 +45,11 @@ const ExpensePage: React.FC<ExpensePageProps> = ({ segments, expenses, addExpens
         setSegmentId(expenseToEdit.segmentId);
       }
     } else {
-        if (segments.length > 0) {
+        if (segments.length > 0 && !segmentId) {
             setSegmentId(segments[0].id);
         }
     }
-  }, [isEditMode, expenseId, expenses, segments]);
+  }, [isEditMode, expenseId, expenses, segments, segmentId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
