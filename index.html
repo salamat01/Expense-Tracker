@@ -6,7 +6,35 @@
     <title>Shuvo Expense Tracker</title>
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#3B82F6" />
-    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      #style-error-message {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background-color: #fef2f2;
+        color: #b91c1c;
+        padding: 2rem;
+        text-align: center;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        z-index: 9999;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      #style-error-message h1 {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+      }
+      #style-error-message a {
+        color: #1d4ed8;
+        text-decoration: underline;
+        font-weight: bold;
+        margin-top: 1rem;
+      }
+    </style>
+    <script src="https://cdn.tailwindcss.com" onerror="document.getElementById('style-error-message').style.display = 'flex'; document.getElementById('root').style.display = 'none';"></script>
     <script>
       tailwind.config = {
         darkMode: 'class',
@@ -39,6 +67,11 @@
 </script>
 </head>
   <body class="bg-brand-bg text-gray-800 dark:bg-gray-900 dark:text-gray-200">
+    <div id="style-error-message">
+      <h1>Application Styles Failed to Load</h1>
+      <p>The app might not look right. This can happen due to a network issue. Please check your connection and try again.</p>
+      <a href="javascript:location.reload();">Refresh Page</a>
+    </div>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
     <script>

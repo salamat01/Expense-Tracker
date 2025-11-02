@@ -1,4 +1,5 @@
-const CACHE_NAME = 'shuvo-expense-tracker-v10'; // Removed Dashboard page
+
+const CACHE_NAME = 'shuvo-expense-tracker-v12';
 // This list includes all the essential files for the app to work offline.
 const URLS_TO_CACHE = [
   '/',
@@ -18,6 +19,7 @@ const URLS_TO_CACHE = [
   '/components/ThemeToggleButton.tsx',
   '/contexts/ThemeContext.tsx',
   '/contexts/DataContext.tsx',
+  '/pages/DashboardPage.tsx',
   '/pages/ExpenseListPage.tsx',
   '/pages/ExpensePage.tsx',
   '/pages/IncomePage.tsx',
@@ -50,9 +52,12 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('Opened cache and caching app shell');
-        // Use {cache: 'reload'} to bypass HTTP cache for these resources
+        // Use {cache: 'reload'} to bypass HTTP cache for these resources.
+        // If any of these network requests fail, Promise.all will reject,
+        // and the service worker installation will fail. This is intentional
+        // to prevent a partially cached, broken state.
         const cachePromises = URLS_TO_CACHE.map(url => {
-          return cache.add(new Request(url, {cache: 'reload'})).catch(err => console.warn(`Failed to cache ${url}:`, err));
+          return cache.add(new Request(url, {cache: 'reload'}));
         });
         return Promise.all(cachePromises);
       })

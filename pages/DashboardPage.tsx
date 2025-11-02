@@ -1,5 +1,4 @@
-
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useData } from '../contexts/DataContext';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -46,22 +45,31 @@ const DashboardPage: React.FC = () => {
     
     // State for the PDF font, which is now loaded locally from the app's assets.
     const [fontBase64, setFontBase64] = useState<string | null>(null);
+    const [isFontLoading, setIsFontLoading] = useState(true);
     const [fontError, setFontError] = useState<string | null>(null);
 
-    // Effect to load the font required for PDF generation when the component mounts.
-    useEffect(() => {
-        const loadFont = async () => {
-            try {
-                const fontModule = await import('../assets/noto-sans-bengali-font');
-                setFontBase64(fontModule.notoSansBengaliBase64);
-            } catch (error) {
-                console.error("Failed to load local font asset for PDF export:", error);
-                setFontError("A required resource for PDF generation could not be loaded. Please refresh the app.");
-            }
-        };
-
-        loadFont();
+    // Effect to load the font required for PDF generation.
+    const loadFont = useCallback(async () => {
+        setIsFontLoading(true);
+        setFontError(null);
+        try {
+            // This dynamic import might fail on a flaky connection or if the file isn't cached
+            const fontModule = await import('../assets/noto-sans-bengali-font');
+            setFontBase64(fontModule.notoSansBengaliBase64);
+        } catch (error) {
+            console.error("Failed to load local font asset for PDF export:", error);
+            setFontError("A required resource for PDF generation could not be loaded.");
+        } finally {
+            setIsFontLoading(false);
+        }
     }, []);
+
+    useEffect(() => {
+        // Only load the font if it hasn't been loaded successfully yet.
+        if (!fontBase64) {
+            loadFont();
+        }
+    }, [loadFont, fontBase64]);
 
     // Extracted date range logic
     const dateRange = useMemo(() => {
@@ -106,7 +114,7 @@ const DashboardPage: React.FC = () => {
                 const incomeDate = new Date(income.date + "T00:00:00");
                 return incomeDate >= start && incomeDate <= end;
             } catch { return false; }
-        });
+        }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [incomes, dateRange]);
 
     // Calculate totals and segment spending
@@ -134,8 +142,193 @@ const DashboardPage: React.FC = () => {
     ], [totalFilteredIncomes, totalFilteredExpenses]);
 
 
-    const handleExportPDF = async () => { /* PDF Generation logic remains the same */ };
+    const handleExportPDF = async () => {
+        if (!fontBase64) {
+            alert("Font not loaded. Cannot generate PDF.");
+            return;
+        }
+    
+        setIsGeneratingPdf(true);
+    
+        try {
+            const doc = new jsPDF();
+    
+            // Add the custom font for Unicode (Bengali) character support
+            doc.addFileToVFS('NotoSansBengali-Regular.ttf', fontBase64);
+            doc.addFont('NotoSansBengali-Regular.ttf', 'NotoSansBengali', 'normal');
+            doc.setFont('NotoSansBengali');
+    
+            // Report Title and Date Range
+            doc.setFontSize(18);
+            doc.text("Financial Report", 14, 22);
+            doc.setFontSize(11);
+            doc.setTextColor(100);
+            const dateRangeString = `Period: ${dateRange.start.toLocaleDateString()} - ${dateRange.end.toLocaleDateString()}`;
+            doc.text(dateRangeString, 14, 29);
+    
+            // Financial Summary Section
+            const summaryData = [
+                [`Total Income:`, `${totalFilteredIncomes.toLocaleString()} BDT`],
+                [`Total Expenses:`, `${totalFilteredExpenses.toLocaleString()} BDT`],
+                [`Remaining Balance:`, `${remainingBalance.toLocaleString()} BDT`]
+            ];
+    
+            (doc as any).autoTable({
+                startY: 35,
+                body: summaryData,
+                theme: 'plain',
+                styles: { font: 'NotoSansBengali', fontStyle: 'bold' },
+                columnStyles: { 0: { halign: 'right' }, 1: { halign: 'left' } }
+            });
+    
+            // Expenses Table
+            if (filteredExpenses.length > 0) {
+                const expenseRows = filteredExpenses.map(exp => {
+                    const segment = segments.find(s => s.id === exp.segmentId);
+                    return [
+                        new Date(exp.dateTime).toLocaleDateString(),
+                        exp.title,
+                        segment ? segment.name : 'N/A',
+                        exp.amount.toLocaleString()
+                    ];
+                });
+    
+                (doc as any).autoTable({
+                    head: [['Date', 'Title', 'Segment', 'Amount (BDT)']],
+                    body: expenseRows,
+                    startY: (doc as any).autoTable.previous.finalY + 10,
+                    theme: 'striped',
+                    headStyles: { fillColor: [239, 68, 68], textColor: 255, fontStyle: 'bold', font: 'NotoSansBengali' },
+                    styles: { font: 'NotoSansBengali' }
+                });
+            }
+    
+            // Incomes Table
+            if (filteredIncomes.length > 0) {
+                const incomeRows = filteredIncomes.map(inc => [
+                    new Date(inc.date).toLocaleDateString(),
+                    inc.title,
+                    inc.amount.toLocaleString()
+                ]);
+    
+                (doc as any).autoTable({
+                    head: [['Date', 'Title', 'Amount (BDT)']],
+                    body: incomeRows,
+                    startY: (doc as any).autoTable.previous.finalY + 10,
+                    theme: 'striped',
+                    headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold', font: 'NotoSansBengali' },
+                    styles: { font: 'NotoSansBengali' }
+                });
+            }
+    
+            const timestamp = new Date().toISOString().slice(0, 10);
+            doc.save(`Shuvo-Expense-Report-${timestamp}.pdf`);
+    
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            alert("An error occurred while generating the PDF report.");
+        } finally {
+            setIsGeneratingPdf(false);
+        }
+    };
 
+    const handleExportExcel = () => {
+        const worksheetName = 'Report';
+        
+        let tableHtml = `
+            <thead>
+                <tr><th colspan="4" style="font-weight:bold; font-size:18px; text-align:center;">Financial Report</th></tr>
+                <tr><th colspan="4" style="text-align:center;">Period: ${dateRange.start.toLocaleDateString()} - ${dateRange.end.toLocaleDateString()}</th></tr>
+                <tr><th colspan="4">&nbsp;</th></tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="2" style="font-weight:bold; font-size:14px;">Financial Summary</td></tr>
+                <tr><td>Total Income (BDT)</td><td>${totalFilteredIncomes.toLocaleString()}</td></tr>
+                <tr><td>Total Expenses (BDT)</td><td>${totalFilteredExpenses.toLocaleString()}</td></tr>
+                <tr><td style="font-weight:bold;">Remaining Balance (BDT)</td><td style="font-weight:bold;">${remainingBalance.toLocaleString()}</td></tr>
+                <tr><td colspan="4">&nbsp;</td></tr>`;
+    
+        if (filteredExpenses.length > 0) {
+            tableHtml += `
+                <tr><td colspan="4" style="font-weight:bold; font-size:14px;">Expense Details</td></tr>
+                <tr style="background-color:#f2f2f2; font-weight:bold;">
+                    <td>Date</td>
+                    <td>Title</td>
+                    <td>Segment</td>
+                    <td>Amount (BDT)</td>
+                </tr>`;
+            filteredExpenses.forEach(exp => {
+                const segment = segments.find(s => s.id === exp.segmentId);
+                tableHtml += `
+                    <tr>
+                        <td>${new Date(exp.dateTime).toLocaleDateString()}</td>
+                        <td>${exp.title}</td>
+                        <td>${segment ? segment.name : 'N/A'}</td>
+                        <td>${exp.amount.toLocaleString()}</td>
+                    </tr>`;
+            });
+            tableHtml += `<tr><td colspan="4">&nbsp;</td></tr>`;
+        }
+    
+        if (filteredIncomes.length > 0) {
+            tableHtml += `
+                <tr><td colspan="3" style="font-weight:bold; font-size:14px;">Income Details</td></tr>
+                <tr style="background-color:#f2f2f2; font-weight:bold;">
+                    <td>Date</td>
+                    <td>Title</td>
+                    <td>Amount (BDT)</td>
+                </tr>`;
+            filteredIncomes.forEach(inc => {
+                tableHtml += `
+                    <tr>
+                        <td>${new Date(inc.date + "T00:00:00").toLocaleDateString()}</td>
+                        <td>${inc.title}</td>
+                        <td>${inc.amount.toLocaleString()}</td>
+                    </tr>`;
+            });
+        }
+    
+        tableHtml += `</tbody>`;
+    
+        const excelHtml = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <meta charset="UTF-8">
+                <!--[if gte mso 9]>
+                <xml>
+                    <x:ExcelWorkbook>
+                        <x:ExcelWorksheets>
+                            <x:ExcelWorksheet>
+                                <x:Name>${worksheetName}</x:Name>
+                                <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+                            </x:ExcelWorksheet>
+                        </x:ExcelWorksheets>
+                    </x:ExcelWorkbook>
+                </xml>
+                <![endif]-->
+            </head>
+            <body>
+                <table>${tableHtml}</table>
+            </body>
+            </html>`;
+    
+        try {
+            const blob = new Blob([excelHtml], { type: 'application/vnd.ms-excel;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            const timestamp = new Date().toISOString().slice(0, 10);
+            link.href = url;
+            link.download = `Shuvo-Expense-Report-${timestamp}.xls`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Failed to export Excel:", error);
+            alert("An error occurred while exporting the Excel file.");
+        }
+    };
+    
     // Data Management
     const handleExportData = () => {
         try {
@@ -284,30 +477,113 @@ const DashboardPage: React.FC = () => {
                 )}
             </div>
             
-            {/* Expense Details List and Report Generation have been omitted for brevity as they are unchanged */}
-
-             {/* PDF Export */}
-            <div className="bg-brand-surface dark:bg-gray-800 p-6 rounded-xl shadow-md">
-                <h2 className="text-xl font-semibold mb-2 text-gray-700 dark:text-gray-300">Generate Report</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">A PDF report will be generated for the selected filter period.</p>
-                <button onClick={handleExportPDF} disabled={isGeneratingPdf || !fontBase64} className="w-full bg-gradient-to-r from-brand-primary to-blue-400 hover:from-blue-400 hover:to-brand-primary text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
-                    {isGeneratingPdf ? 'Generating...' : !fontBase64 ? 'Preparing Report...' : 'Download PDF Report'}
-                </button>
-                {fontError && <p className="text-red-500 text-sm mt-2 text-center">{fontError}</p>}
+            {/* Expense Details List */}
+            <div className="bg-brand-surface dark:bg-gray-800 p-4 rounded-xl shadow-md">
+                <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-300">
+                    Expense Details (Total: {totalFilteredExpenses.toLocaleString()} BDT)
+                </h2>
+                {filteredExpenses.length > 0 ? (
+                    <ul className="divide-y divide-gray-200 dark:divide-gray-700 max-h-96 overflow-y-auto">
+                        {filteredExpenses.map(expense => {
+                            const segment = segments.find(s => s.id === expense.segmentId);
+                            return (
+                                <li key={expense.id} className="py-3 flex justify-between items-center">
+                                    <div className="flex-1 min-w-0 pr-2">
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-semibold text-base text-gray-800 dark:text-gray-200 truncate">{expense.title}</p>
+                                            {segment && (
+                                                <span className="text-xs px-2 py-0.5 rounded-full font-bold flex-shrink-0" style={{ backgroundColor: `${segment.color}20`, color: segment.color }}>
+                                                    {segment.name}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                            {new Date(expense.dateTime).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                    <p className="font-bold text-base text-red-600">
+                                        - {expense.amount.toLocaleString()} BDT
+                                    </p>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                ) : (
+                    <p className="text-center text-gray-500 dark:text-gray-400 py-10">No expenses recorded for this period.</p>
+                )}
             </div>
 
-             {/* Data Management */}
-            <div className="bg-brand-surface dark:bg-gray-800 p-6 rounded-xl shadow-md">
-                <h2 className="text-xl font-semibold mb-2 text-gray-700 dark:text-gray-300">Data Management</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Backup your data to a file or restore it from a previous backup. This will overwrite current data.</p>
-                <div className="flex flex-col sm:flex-row gap-4">
-                    <button onClick={handleExportData} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-emerald-500 hover:to-green-500 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105">
-                        Export Backup
-                    </button>
-                    <label htmlFor="import-file" className="flex-1 text-center bg-gradient-to-r from-gray-500 to-slate-500 hover:from-slate-500 hover:to-gray-500 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 cursor-pointer">
-                        Import Backup
-                    </label>
-                    <input id="import-file" type="file" className="hidden" accept=".json,application/json" onChange={handleImportData} />
+            {/* Income Details List */}
+            <div className="bg-brand-surface dark:bg-gray-800 p-4 rounded-xl shadow-md">
+                <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-300">
+                    Income Details (Total: {totalFilteredIncomes.toLocaleString()} BDT)
+                </h2>
+                {filteredIncomes.length > 0 ? (
+                    <ul className="divide-y divide-gray-200 dark:divide-gray-700 max-h-96 overflow-y-auto">
+                        {filteredIncomes.map(income => (
+                            <li key={income.id} className="py-3 flex justify-between items-center">
+                                <div className="flex-1 min-w-0 pr-2">
+                                    <p className="font-semibold text-base text-gray-800 dark:text-gray-200 truncate">{income.title}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        {new Date(income.date).toLocaleDateString()}
+                                    </p>
+                                </div>
+                                <p className="font-bold text-base text-green-600">
+                                    + {income.amount.toLocaleString()} BDT
+                                </p>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <p className="text-center text-gray-500 dark:text-gray-400 py-10">No income recorded for this period.</p>
+                )}
+            </div>
+
+             {/* Reports & Data */}
+             <div className="bg-brand-surface dark:bg-gray-800 p-6 rounded-xl shadow-md">
+                <h2 className="text-xl font-semibold mb-2 text-gray-700 dark:text-gray-300">Reports & Data</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    Export your filtered data as a PDF or Excel file, or backup/restore all application data.
+                </p>
+
+                <div className="space-y-4">
+                    {/* Report Buttons */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {fontError ? (
+                            <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg text-center">
+                                <p className="text-red-600 dark:text-red-400 text-sm font-semibold mb-2">PDF Generation Failed</p>
+                                <p className="text-red-500 text-xs mb-3">{fontError}</p>
+                                <button onClick={loadFont} disabled={isFontLoading} className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg text-sm">
+                                    {isFontLoading ? 'Retrying...' : 'Retry'}
+                                </button>
+                            </div>
+                        ) : (
+                            <button onClick={handleExportPDF} disabled={isGeneratingPdf || isFontLoading || !fontBase64} className="w-full bg-gradient-to-r from-brand-primary to-blue-400 hover:from-blue-400 hover:to-brand-primary text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+                                {isGeneratingPdf ? 'Generating...' : (isFontLoading ? 'Preparing Report...' : 'Download PDF Report')}
+                            </button>
+                        )}
+                        <button onClick={handleExportExcel} className="w-full bg-gradient-to-r from-green-600 to-teal-500 hover:from-teal-500 hover:to-green-600 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105">
+                            Export to Excel
+                        </button>
+                    </div>
+
+                    {/* Separator */}
+                    <div className="relative flex py-2 items-center">
+                        <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
+                        <span className="flex-shrink mx-4 text-xs text-gray-400 dark:text-gray-500 uppercase">Data Backup</span>
+                        <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
+                    </div>
+
+                    {/* Data Management Buttons */}
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <button onClick={handleExportData} className="flex-1 bg-gradient-to-r from-gray-700 to-slate-600 hover:from-slate-600 hover:to-gray-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105">
+                            Export Backup
+                        </button>
+                        <label htmlFor="import-file" className="flex-1 text-center bg-gradient-to-r from-gray-500 to-slate-500 hover:from-slate-500 hover:to-gray-500 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 cursor-pointer flex items-center justify-center">
+                            Import Backup
+                        </label>
+                        <input id="import-file" type="file" className="hidden" accept=".json,application/json" onChange={handleImportData} />
+                    </div>
                 </div>
             </div>
         </div>
