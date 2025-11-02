@@ -7,6 +7,7 @@ import IncomePage from './pages/IncomePage';
 import SegmentsPage from './pages/SegmentsPage';
 import ExpensePage from './pages/ExpensePage';
 import ExpenseListPage from './pages/ExpenseListPage';
+import DashboardPage from './pages/DashboardPage';
 
 const App: React.FC = () => {
   return (
@@ -16,10 +17,12 @@ const App: React.FC = () => {
         <div className="container mx-auto p-4 max-w-2xl">
           <Routes>
             <Route path="/" element={<ExpensePage />} />
+            <Route path="/expense" element={<ExpensePage />} />
             <Route path="/edit-expense/:expenseId" element={<ExpensePage />} />
             <Route path="/income" element={<IncomePage />} />
             <Route path="/segments" element={<SegmentsPage />} />
             <Route path="/expenses-list" element={<ExpenseListPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
           </Routes>
         </div>
       </main>

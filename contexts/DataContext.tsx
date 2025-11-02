@@ -59,6 +59,7 @@ interface DataContextType {
   addSegment: (segment: Omit<Segment, 'id' | 'color'> & {color?: string}) => void;
   updateSegment: (id: string, updatedSegment: Omit<Segment, 'id'>) => void;
   deleteSegment: (id: string) => void;
+  replaceAllData: (data: AppData) => void;
   isOnline: boolean;
   isSyncing: boolean;
   isLoading: boolean;
@@ -94,12 +95,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const loadData = async () => {
       setIsLoading(true);
 
-      // This function ensures data is always in a valid format, preventing crashes from corrupted storage.
       const validateAndCleanData = (data: AppData | null): AppData => {
         if (!data || typeof data !== 'object') {
           return { incomes: [], expenses: [], segments: [] };
         }
-        // Ensure each item is an array and filter out any null/undefined entries
         const cleanIncomes = (Array.isArray(data.incomes) ? data.incomes : []).filter(Boolean);
         const cleanExpenses = (Array.isArray(data.expenses) ? data.expenses : []).filter(Boolean);
         const cleanSegments = (Array.isArray(data.segments) ? data.segments : []).filter(Boolean);
@@ -131,7 +130,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setExpenses(finalData.expenses);
       setSegments(coloredSegments);
       
-      // Save the cleaned data back to local storage to fix any corruption for the next load.
       localStorage.setItem(localDataKey, JSON.stringify({ ...finalData, segments: coloredSegments }));
       
       setIsLoading(false);
@@ -223,6 +221,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [incomes, expenses, segments, isOnline]);
 
+  const replaceAllData = useCallback((data: AppData) => {
+    if (!data || !Array.isArray(data.incomes) || !Array.isArray(data.expenses) || !Array.isArray(data.segments)) {
+      alert("Import failed: The file is not a valid backup file.");
+      return;
+    }
+  
+    const assignDefaultColors = (segs: Segment[]): Segment[] => {
+      const defaultColors = ['#38BDF8', '#FBBF24', '#22C55E', '#8B5CF6', '#EC4899', '#EF4444'];
+      return segs.map((s, index) => ({
+          ...s,
+          color: s.color || defaultColors[index % defaultColors.length]
+      }));
+    };
+
+    const coloredSegments = assignDefaultColors(data.segments);
+    const fullData = { incomes: data.incomes, expenses: data.expenses, segments: coloredSegments };
+  
+    setIncomes(fullData.incomes);
+    setExpenses(fullData.expenses);
+    setSegments(fullData.segments);
+  
+    localStorage.setItem(localDataKey, JSON.stringify(fullData));
+    localStorage.removeItem(syncQueueKey); // Clear sync queue on import
+  
+    if (isOnline) {
+      console.log("[SYNC] Full data import. Syncing with cloud.");
+      setIsSyncing(true);
+      cloudSyncApi.saveData(MOCK_USER_ID, fullData).finally(() => setIsSyncing(false));
+    }
+    alert("Data imported successfully! The app will now use the imported data.");
+  }, [isOnline]);
+
   const addIncome = (income: Omit<Income, 'id'>) => {
     const newIncome = { ...income, id: Date.now().toString() };
     updateStateAndSync(
@@ -302,7 +332,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       incomes, expenses, segments, isOnline, isSyncing, isLoading,
       addIncome, updateIncome, deleteIncome,
       addExpense, updateExpense, deleteExpense,
-      addSegment, updateSegment, deleteSegment
+      addSegment, updateSegment, deleteSegment,
+      replaceAllData
     }}>
       {children}
     </DataContext.Provider>
