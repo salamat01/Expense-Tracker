@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shuvo-expense-tracker-v2'; // Bumped version to ensure new SW is installed
+const CACHE_NAME = 'shuvo-expense-tracker-v10'; // Removed Dashboard page
 // This list includes all the essential files for the app to work offline.
 const URLS_TO_CACHE = [
   '/',
@@ -11,13 +11,13 @@ const URLS_TO_CACHE = [
   '/metadata.json',
   '/manifest.json',
   '/assets/icon.svg',
+  '/assets/noto-sans-bengali-font.ts', // Add the new local font asset to the cache
   '/components/BottomNav.tsx',
   '/components/Calculator.tsx',
   '/components/Header.tsx',
   '/components/ThemeToggleButton.tsx',
   '/contexts/ThemeContext.tsx',
   '/contexts/DataContext.tsx',
-  '/pages/DashboardPage.tsx',
   '/pages/ExpenseListPage.tsx',
   '/pages/ExpensePage.tsx',
   '/pages/IncomePage.tsx',
@@ -25,7 +25,6 @@ const URLS_TO_CACHE = [
   '/components/SyncStatus.tsx',
   '/components/icons/CalculatorIcon.tsx',
   '/components/icons/CloudOfflineIcon.tsx',
-  '/components/icons/DashboardIcon.tsx',
   '/components/icons/EditIcon.tsx',
   '/components/icons/ExpenseIcon.tsx',
   '/components/icons/IncomeIcon.tsx',
@@ -43,9 +42,6 @@ const URLS_TO_CACHE = [
   'https://aistudiocdn.com/react-dom@^19.2.0/client',
   'https://aistudiocdn.com/react-router-dom@^7.9.4',
   'https://aistudiocdn.com/react@^19.2.0/jsx-runtime',
-  'https://aistudiocdn.com/recharts@^3.3.0',
-  'https://aistudiocdn.com/jspdf@^2.5.1',
-  'https://aistudiocdn.com/jspdf-autotable@^3.8.2'
 ];
 
 // Install event: cache the app shell

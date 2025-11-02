@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useData } from '../contexts/DataContext';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -40,7 +40,31 @@ const DashboardPage: React.FC = () => {
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
     const [startDate, setStartDate] = useState(initialStartDate);
     const [endDate, setEndDate] = useState(initialEndDate);
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     
+    // State for the PDF font, which is now loaded locally from the app's assets.
+    const [fontBase64, setFontBase64] = useState<string | null>(null);
+    const [fontError, setFontError] = useState<string | null>(null);
+
+    // Effect to load the font required for PDF generation when the component mounts.
+    // This is now hyper-reliable as it loads the font from a local asset file 
+    // instead of a fragile network request.
+    useEffect(() => {
+        const loadFont = async () => {
+            try {
+                // Dynamically import the font module. This creates a separate code chunk
+                // for the large font string, so it doesn't slow down the initial app load.
+                const fontModule = await import('../assets/noto-sans-bengali-font');
+                setFontBase64(fontModule.notoSansBengaliBase64);
+            } catch (error) {
+                console.error("Failed to load local font asset for PDF export:", error);
+                setFontError("A required resource for PDF generation could not be loaded. Please refresh the app.");
+            }
+        };
+
+        loadFont();
+    }, []); // Empty dependency array ensures this runs only once on component mount.
+
     // Extracted date range logic
     const dateRange = useMemo(() => {
         let start: Date, end: Date;
@@ -117,65 +141,89 @@ const DashboardPage: React.FC = () => {
     }, [filteredExpenses, segments]);
 
     // PDF Generation
-    const handleExportPDF = () => {
-        const doc = new jsPDF();
-        const { start: reportStartDate, end: reportEndDate } = dateRange;
-    
-        doc.setFontSize(20);
-        doc.text("Expense Report", 14, 22);
-        doc.setFontSize(12);
-        doc.text(`Period: ${reportStartDate.toLocaleDateString()} to ${reportEndDate.toLocaleDateString()}`, 14, 30);
-
-        (doc as any).autoTable({
-            startY: 40,
-            head: [['Summary', 'Amount (BDT)']],
-            body: [
-                ['Total Income', `+ ${totalFilteredIncomes.toLocaleString()}`],
-                ['Total Expenses', `- ${totalFilteredExpenses.toLocaleString()}`],
-                ['Remaining Balance', `${remainingBalance.toLocaleString()}`]
-            ],
-            headStyles: { fillColor: '#4A5568' },
-            bodyStyles: { fontStyle: 'bold' },
-            columnStyles: { 1: { halign: 'right' } },
-            didParseCell: (data: any) => {
-                if(data.row.index === 0) data.cell.styles.textColor = '#10B981';
-                if(data.row.index === 1) data.cell.styles.textColor = '#EF4444';
-                if(data.row.index === 2) data.cell.styles.textColor = remainingBalance >= 0 ? '#3B82F6' : '#EF4444';
-            }
-        });
-
-        if (segmentSpending.length > 0) {
-            (doc as any).autoTable({
-                startY: (doc as any).lastAutoTable.finalY + 10,
-                head: [['Spending by Segment', 'Amount (BDT)']],
-                body: segmentSpending.map(s => [s.name, s.value.toLocaleString()]),
-                headStyles: { fillColor: '#3B82F6' },
-                columnStyles: { 1: { halign: 'right' } }
-            });
+    const handleExportPDF = async () => {
+        if (!fontBase64) {
+            alert(fontError || "The PDF generator is not ready yet. Please wait a moment.");
+            return;
         }
+
+        setIsGeneratingPdf(true);
+        try {
+            const doc = new jsPDF();
+            const { start: reportStartDate, end: reportEndDate } = dateRange;
+            
+            // Use the pre-loaded font data from the component's state.
+            doc.addFileToVFS('NotoSansBengali-Regular.ttf', fontBase64);
+            doc.addFont('NotoSansBengali-Regular.ttf', 'NotoSansBengali', 'normal');
+            doc.setFont('NotoSansBengali');
         
-        const finalY = (doc as any).lastAutoTable.finalY;
+            doc.setFontSize(20);
+            doc.text("Expense Report", 14, 22);
+            doc.setFontSize(12);
+            doc.text(`Period: ${reportStartDate.toLocaleDateString()} to ${reportEndDate.toLocaleDateString()}`, 14, 30);
 
-        if (filteredExpenses.length > 0) {
-            const getSegmentName = (segmentId: string) => (segments || []).find(s => s.id === segmentId)?.name || 'N/A';
+            const fontStyles = { font: 'NotoSansBengali' };
+
             (doc as any).autoTable({
-                startY: finalY + 10,
-                head: [['Date', 'Title', 'Segment', 'Amount (BDT)']],
-                body: filteredExpenses.map(e => [
-                    new Date(e.dateTime).toLocaleString('en-US', { timeZone: 'Asia/Dhaka' }),
-                    e.title,
-                    getSegmentName(e.segmentId),
-                    `- ${e.amount.toLocaleString()}`,
-                ]),
-                headStyles: { fillColor: '#4A5568' },
-                columnStyles: { 3: { halign: 'right', textColor: '#E53E3E', fontStyle: 'bold' } }
+                startY: 40,
+                head: [['Summary', 'Amount (BDT)']],
+                body: [
+                    ['Total Income', `+ ${totalFilteredIncomes.toLocaleString()}`],
+                    ['Total Expenses', `- ${totalFilteredExpenses.toLocaleString()}`],
+                    ['Remaining Balance', `${remainingBalance.toLocaleString()}`]
+                ],
+                styles: fontStyles,
+                headStyles: { ...fontStyles, fillColor: '#4A5568' },
+                bodyStyles: { ...fontStyles, fontStyle: 'bold' },
+                columnStyles: { 1: { halign: 'right' } },
+                didParseCell: (data: any) => {
+                    if(data.row.index === 0) data.cell.styles.textColor = '#10B981';
+                    if(data.row.index === 1) data.cell.styles.textColor = '#EF4444';
+                    if(data.row.index === 2) data.cell.styles.textColor = remainingBalance >= 0 ? '#3B82F6' : '#EF4444';
+                }
             });
-        } else {
-            doc.text("No expenses recorded for this period.", 14, finalY + 10);
-        }
 
-        doc.save(`Expense_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+            if (segmentSpending.length > 0) {
+                (doc as any).autoTable({
+                    startY: (doc as any).lastAutoTable.finalY + 10,
+                    head: [['Spending by Segment', 'Amount (BDT)']],
+                    body: segmentSpending.map(s => [s.name, s.value.toLocaleString()]),
+                    styles: fontStyles,
+                    headStyles: { ...fontStyles, fillColor: '#3B82F6' },
+                    columnStyles: { 1: { halign: 'right' } }
+                });
+            }
+            
+            const finalY = (doc as any).lastAutoTable.finalY;
+
+            if (filteredExpenses.length > 0) {
+                const getSegmentName = (segmentId: string) => (segments || []).find(s => s.id === segmentId)?.name || 'N/A';
+                (doc as any).autoTable({
+                    startY: finalY + 10,
+                    head: [['Date', 'Title', 'Segment', 'Amount (BDT)']],
+                    body: filteredExpenses.map(e => [
+                        new Date(e.dateTime).toLocaleString('en-US', { timeZone: 'Asia/Dhaka' }),
+                        e.title,
+                        getSegmentName(e.segmentId),
+                        `- ${e.amount.toLocaleString()}`,
+                    ]),
+                    styles: fontStyles,
+                    headStyles: { ...fontStyles, fillColor: '#4A5568' },
+                    columnStyles: { 3: { halign: 'right', textColor: '#E53E3E', fontStyle: 'bold' } }
+                });
+            } else {
+                doc.text("No expenses recorded for this period.", 14, finalY + 10);
+            }
+
+            doc.save(`Expense_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+        } catch (error) {
+            console.error("Failed to generate PDF:", error);
+            alert("Failed to generate PDF. An unexpected error occurred. Please check the console for more details.");
+        } finally {
+            setIsGeneratingPdf(false);
+        }
     };
+
 
     if (isLoading) {
         return <div className="text-center p-8">Loading dashboard...</div>;
@@ -303,9 +351,14 @@ const DashboardPage: React.FC = () => {
             <div className="bg-brand-surface dark:bg-gray-800 p-6 rounded-xl shadow-md">
                 <h2 className="text-xl font-semibold mb-2 text-gray-700 dark:text-gray-300">Generate Report</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">A PDF report will be generated for the selected filter period.</p>
-                <button onClick={handleExportPDF} className="w-full bg-gradient-to-r from-brand-primary to-blue-400 hover:from-blue-400 hover:to-brand-primary text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105">
-                    Download PDF
+                <button 
+                  onClick={handleExportPDF} 
+                  disabled={isGeneratingPdf || !fontBase64}
+                  className="w-full bg-gradient-to-r from-brand-primary to-blue-400 hover:from-blue-400 hover:to-brand-primary text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                >
+                    {isGeneratingPdf ? 'Generating...' : !fontBase64 ? 'Preparing Report...' : 'Download PDF'}
                 </button>
+                {fontError && <p className="text-red-500 text-sm mt-2 text-center">{fontError}</p>}
             </div>
         </div>
     );

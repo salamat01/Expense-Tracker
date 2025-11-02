@@ -6,7 +6,6 @@ import Header from './components/Header';
 import IncomePage from './pages/IncomePage';
 import SegmentsPage from './pages/SegmentsPage';
 import ExpensePage from './pages/ExpensePage';
-import DashboardPage from './pages/DashboardPage';
 import ExpenseListPage from './pages/ExpenseListPage';
 
 const App: React.FC = () => {
@@ -20,7 +19,6 @@ const App: React.FC = () => {
             <Route path="/edit-expense/:expenseId" element={<ExpensePage />} />
             <Route path="/income" element={<IncomePage />} />
             <Route path="/segments" element={<SegmentsPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/expenses-list" element={<ExpenseListPage />} />
           </Routes>
         </div>
