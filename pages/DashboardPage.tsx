@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { useData } from '../contexts/DataContext';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { AppData } from '../types';
 
@@ -42,34 +43,6 @@ const DashboardPage: React.FC = () => {
     const [startDate, setStartDate] = useState(initialStartDate);
     const [endDate, setEndDate] = useState(initialEndDate);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-    
-    // State for the PDF font, which is now loaded locally from the app's assets.
-    const [fontBase64, setFontBase64] = useState<string | null>(null);
-    const [isFontLoading, setIsFontLoading] = useState(true);
-    const [fontError, setFontError] = useState<string | null>(null);
-
-    // Effect to load the font required for PDF generation.
-    const loadFont = useCallback(async () => {
-        setIsFontLoading(true);
-        setFontError(null);
-        try {
-            // This dynamic import might fail on a flaky connection or if the file isn't cached
-            const fontModule = await import('../assets/noto-sans-bengali-font');
-            setFontBase64(fontModule.notoSansBengaliBase64);
-        } catch (error) {
-            console.error("Failed to load local font asset for PDF export:", error);
-            setFontError("A required resource for PDF generation could not be loaded.");
-        } finally {
-            setIsFontLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        // Only load the font if it hasn't been loaded successfully yet.
-        if (!fontBase64) {
-            loadFont();
-        }
-    }, [loadFont, fontBase64]);
 
     // Extracted date range logic
     const dateRange = useMemo(() => {
@@ -143,43 +116,80 @@ const DashboardPage: React.FC = () => {
 
 
     const handleExportPDF = async () => {
-        if (!fontBase64) {
-            alert("Font not loaded. Cannot generate PDF.");
-            return;
-        }
-    
         setIsGeneratingPdf(true);
     
         try {
             const doc = new jsPDF();
-    
-            // Add the custom font for Unicode (Bengali) character support
-            doc.addFileToVFS('NotoSansBengali-Regular.ttf', fontBase64);
-            doc.addFont('NotoSansBengali-Regular.ttf', 'NotoSansBengali', 'normal');
-            doc.setFont('NotoSansBengali');
+            
+            // Use standard font to avoid encoding errors with custom fonts
+            doc.setFont("helvetica", "normal");
     
             // Report Title and Date Range
             doc.setFontSize(18);
             doc.text("Financial Report", 14, 22);
+            
             doc.setFontSize(11);
             doc.setTextColor(100);
             const dateRangeString = `Period: ${dateRange.start.toLocaleDateString()} - ${dateRange.end.toLocaleDateString()}`;
             doc.text(dateRangeString, 14, 29);
     
+            let finalY = 35;
+
             // Financial Summary Section
             const summaryData = [
-                [`Total Income:`, `${totalFilteredIncomes.toLocaleString()} BDT`],
-                [`Total Expenses:`, `${totalFilteredExpenses.toLocaleString()} BDT`],
-                [`Remaining Balance:`, `${remainingBalance.toLocaleString()} BDT`]
+                ['Total Income:', `${totalFilteredIncomes.toLocaleString()} BDT`],
+                ['Total Expenses:', `${totalFilteredExpenses.toLocaleString()} BDT`],
+                ['Remaining Balance:', `${remainingBalance.toLocaleString()} BDT`]
             ];
     
-            (doc as any).autoTable({
-                startY: 35,
+            autoTable(doc, {
+                startY: finalY,
                 body: summaryData,
                 theme: 'plain',
-                styles: { font: 'NotoSansBengali', fontStyle: 'bold' },
-                columnStyles: { 0: { halign: 'right' }, 1: { halign: 'left' } }
+                styles: { fontSize: 11 },
+                columnStyles: { 0: { fontStyle: 'bold', halign: 'right', cellWidth: 50 }, 1: { halign: 'left' } },
+                margin: { left: 14 }
             });
+
+            finalY = (doc as any).lastAutoTable.finalY + 10;
+
+            // Segment Breakdown Table
+            if (segments.length > 0) {
+                const segmentRows = segments.map(segment => {
+                    const spentInPeriod = filteredExpenses
+                        .filter(e => e.segmentId === segment.id)
+                        .reduce((sum, e) => sum + e.amount, 0);
+                    
+                    return [
+                        segment.name,
+                        segment.allocatedAmount.toLocaleString(),
+                        spentInPeriod.toLocaleString(),
+                        (segment.allocatedAmount - spentInPeriod).toLocaleString()
+                    ];
+                });
+
+                // Sort by spent amount in descending order to show biggest expenses first
+                segmentRows.sort((a, b) => {
+                    const spentA = parseFloat(String(a[2]).replace(/,/g, ''));
+                    const spentB = parseFloat(String(b[2]).replace(/,/g, ''));
+                    return spentB - spentA;
+                });
+
+                doc.setFontSize(14);
+                doc.setTextColor(0);
+                doc.text("Budget Segments Breakdown", 14, finalY);
+                finalY += 6;
+
+                autoTable(doc, {
+                    startY: finalY,
+                    head: [['Segment', 'Allocated (BDT)', 'Spent (BDT)', 'Remaining (BDT)']],
+                    body: segmentRows,
+                    theme: 'striped',
+                    headStyles: { fillColor: [56, 189, 248], textColor: 255, fontStyle: 'bold' },
+                });
+
+                finalY = (doc as any).lastAutoTable.finalY + 10;
+            }
     
             // Expenses Table
             if (filteredExpenses.length > 0) {
@@ -192,15 +202,27 @@ const DashboardPage: React.FC = () => {
                         exp.amount.toLocaleString()
                     ];
                 });
+
+                // Check if we need a page break
+                if (finalY > 250) {
+                    doc.addPage();
+                    finalY = 20;
+                }
+
+                doc.setFontSize(14);
+                doc.setTextColor(0);
+                doc.text("Expense Details", 14, finalY);
+                finalY += 6;
     
-                (doc as any).autoTable({
+                autoTable(doc, {
+                    startY: finalY,
                     head: [['Date', 'Title', 'Segment', 'Amount (BDT)']],
                     body: expenseRows,
-                    startY: (doc as any).autoTable.previous.finalY + 10,
                     theme: 'striped',
-                    headStyles: { fillColor: [239, 68, 68], textColor: 255, fontStyle: 'bold', font: 'NotoSansBengali' },
-                    styles: { font: 'NotoSansBengali' }
+                    headStyles: { fillColor: [239, 68, 68], textColor: 255, fontStyle: 'bold' },
                 });
+
+                finalY = (doc as any).lastAutoTable.finalY + 10;
             }
     
             // Incomes Table
@@ -210,14 +232,24 @@ const DashboardPage: React.FC = () => {
                     inc.title,
                     inc.amount.toLocaleString()
                 ]);
+
+                 // Check if we need a page break
+                 if (finalY > 250) {
+                    doc.addPage();
+                    finalY = 20;
+                }
+
+                doc.setFontSize(14);
+                doc.setTextColor(0);
+                doc.text("Income Details", 14, finalY);
+                finalY += 6;
     
-                (doc as any).autoTable({
+                autoTable(doc, {
+                    startY: finalY,
                     head: [['Date', 'Title', 'Amount (BDT)']],
                     body: incomeRows,
-                    startY: (doc as any).autoTable.previous.finalY + 10,
                     theme: 'striped',
-                    headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold', font: 'NotoSansBengali' },
-                    styles: { font: 'NotoSansBengali' }
+                    headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
                 });
             }
     
@@ -248,6 +280,28 @@ const DashboardPage: React.FC = () => {
                 <tr><td style="font-weight:bold;">Remaining Balance (BDT)</td><td style="font-weight:bold;">${remainingBalance.toLocaleString()}</td></tr>
                 <tr><td colspan="4">&nbsp;</td></tr>`;
     
+        if (segments.length > 0) {
+             tableHtml += `
+                <tr><td colspan="4" style="font-weight:bold; font-size:14px;">Budget Segments Breakdown</td></tr>
+                <tr style="background-color:#f2f2f2; font-weight:bold;">
+                    <td>Segment</td>
+                    <td>Allocated</td>
+                    <td>Spent</td>
+                    <td>Remaining</td>
+                </tr>`;
+            segments.forEach(seg => {
+                const spent = filteredExpenses.filter(e => e.segmentId === seg.id).reduce((sum, e) => sum + e.amount, 0);
+                tableHtml += `
+                    <tr>
+                        <td>${seg.name}</td>
+                        <td>${seg.allocatedAmount.toLocaleString()}</td>
+                        <td>${spent.toLocaleString()}</td>
+                        <td>${(seg.allocatedAmount - spent).toLocaleString()}</td>
+                    </tr>`;
+            });
+            tableHtml += `<tr><td colspan="4">&nbsp;</td></tr>`;
+        }
+
         if (filteredExpenses.length > 0) {
             tableHtml += `
                 <tr><td colspan="4" style="font-weight:bold; font-size:14px;">Expense Details</td></tr>
@@ -321,8 +375,10 @@ const DashboardPage: React.FC = () => {
             link.download = `Shuvo-Expense-Report-${timestamp}.xls`;
             document.body.appendChild(link);
             link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
+            setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }, 100);
         } catch (error) {
             console.error("Failed to export Excel:", error);
             alert("An error occurred while exporting the Excel file.");
@@ -342,8 +398,10 @@ const DashboardPage: React.FC = () => {
             link.download = `shuvo-expense-tracker-backup-${timestamp}.json`;
             document.body.appendChild(link);
             link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
+            setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }, 100);
         } catch (error) {
             console.error("Failed to export data:", error);
             alert("An error occurred while exporting your data.");
@@ -549,19 +607,9 @@ const DashboardPage: React.FC = () => {
                 <div className="space-y-4">
                     {/* Report Buttons */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {fontError ? (
-                            <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg text-center">
-                                <p className="text-red-600 dark:text-red-400 text-sm font-semibold mb-2">PDF Generation Failed</p>
-                                <p className="text-red-500 text-xs mb-3">{fontError}</p>
-                                <button onClick={loadFont} disabled={isFontLoading} className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg text-sm">
-                                    {isFontLoading ? 'Retrying...' : 'Retry'}
-                                </button>
-                            </div>
-                        ) : (
-                            <button onClick={handleExportPDF} disabled={isGeneratingPdf || isFontLoading || !fontBase64} className="w-full bg-gradient-to-r from-brand-primary to-blue-400 hover:from-blue-400 hover:to-brand-primary text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
-                                {isGeneratingPdf ? 'Generating...' : (isFontLoading ? 'Preparing Report...' : 'Download PDF Report')}
-                            </button>
-                        )}
+                        <button onClick={handleExportPDF} disabled={isGeneratingPdf} className="w-full bg-gradient-to-r from-brand-primary to-blue-400 hover:from-blue-400 hover:to-brand-primary text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+                            {isGeneratingPdf ? 'Generating...' : 'Download PDF Report'}
+                        </button>
                         <button onClick={handleExportExcel} className="w-full bg-gradient-to-r from-green-600 to-teal-500 hover:from-teal-500 hover:to-green-600 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105">
                             Export to Excel
                         </button>
