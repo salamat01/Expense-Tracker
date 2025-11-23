@@ -5,6 +5,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { AppData } from '../types';
+import WalletIcon from '../components/icons/WalletIcon';
 
 // Helper to get current month's start/end dates in YYYY-MM-DD format
 const getDefaultDateRange = () => {
@@ -43,6 +44,37 @@ const DashboardPage: React.FC = () => {
     const [startDate, setStartDate] = useState(initialStartDate);
     const [endDate, setEndDate] = useState(initialEndDate);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+    // State for Note/Wallet Modal
+    const [isNoteOpen, setIsNoteOpen] = useState(false);
+    const [noteText, setNoteText] = useState(() => localStorage.getItem('dashboard_note') || '');
+
+    const saveNote = () => {
+        localStorage.setItem('dashboard_note', noteText);
+        setIsNoteOpen(false);
+    };
+
+    // Calculate Lifetime Balance (Total Income - Total Expenses ever) for Wallet reconciliation
+    const lifetimeBalance = useMemo(() => {
+        const totalInc = (incomes || []).reduce((sum, i) => sum + i.amount, 0);
+        const totalExp = (expenses || []).reduce((sum, e) => sum + e.amount, 0);
+        return totalInc - totalExp;
+    }, [incomes, expenses]);
+
+    // Parse note text to calculate total amount in wallet locations
+    const noteTotal = useMemo(() => {
+        if (!noteText) return 0;
+        return noteText.split('\n').reduce((acc, line) => {
+            // Find numbers. We take the last number in the line to allow things like "Card 2: 500"
+            const matches = line.match(/[-+]?([0-9]*\.[0-9]+|[0-9]+)/g);
+            if (matches && matches.length > 0) {
+                return acc + parseFloat(matches[matches.length - 1]);
+            }
+            return acc;
+        }, 0);
+    }, [noteText]);
+
+    const balanceDifference = lifetimeBalance - noteTotal;
 
     // Extracted date range logic
     const dateRange = useMemo(() => {
@@ -442,7 +474,74 @@ const DashboardPage: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-center text-gray-800 dark:text-gray-200">Dashboard</h1>
+            {/* Header with Note Button */}
+            <div className="flex justify-center items-center gap-2">
+                <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Dashboard</h1>
+                <button 
+                    onClick={() => setIsNoteOpen(true)} 
+                    className="p-2 text-brand-primary dark:text-sky-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors focus:outline-none"
+                    title="Track where your money is (Cash, Card, etc.)"
+                >
+                    <WalletIcon />
+                </button>
+            </div>
+
+            {/* Note Modal */}
+            {isNoteOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all">
+                        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                            <h3 className="font-bold text-lg text-gray-800 dark:text-gray-200">Money Locations</h3>
+                            <button onClick={() => setIsNoteOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 font-bold text-2xl leading-none">&times;</button>
+                        </div>
+                        <div className="p-4">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                                Keep track of where your remaining balance is stored (e.g., Cash, Bkash, Bank).
+                            </p>
+                            <textarea 
+                                className="w-full h-40 p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent resize-none text-gray-800 dark:text-gray-200 text-sm font-mono"
+                                placeholder="Cash: 500&#10;Bkash: 1200&#10;Card: 10000"
+                                value={noteText}
+                                onChange={(e) => setNoteText(e.target.value)}
+                            />
+                            
+                            {/* Summary & Comparison Section */}
+                            <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg space-y-2">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600 dark:text-gray-400">System Balance:</span>
+                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{lifetimeBalance.toLocaleString()} BDT</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600 dark:text-gray-400">Note Total:</span>
+                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{noteTotal.toLocaleString()} BDT</span>
+                                </div>
+                                <div className="border-t border-gray-300 dark:border-gray-600 my-1"></div>
+                                <div className="flex justify-between text-sm font-bold">
+                                    <span className="text-gray-600 dark:text-gray-400">Difference:</span>
+                                    <span className={`${balanceDifference === 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                        {balanceDifference > 0 ? '(Missing) ' : balanceDifference < 0 ? '(Extra) ' : ''}
+                                        {Math.abs(balanceDifference).toLocaleString()} BDT
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-4 bg-gray-50 dark:bg-gray-700/50 flex justify-end gap-2">
+                            <button 
+                                onClick={() => setIsNoteOpen(false)}
+                                className="px-4 py-2 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={saveNote}
+                                className="px-4 py-2 bg-brand-primary text-white font-bold rounded-lg hover:bg-blue-600 transition-colors shadow-sm"
+                            >
+                                Save Note
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Filter Controls */}
             <div className="bg-brand-surface dark:bg-gray-800 p-4 rounded-xl shadow-md">
