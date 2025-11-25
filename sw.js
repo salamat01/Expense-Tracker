@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'shuvo-expense-tracker-v13';
+const CACHE_NAME = 'shuvo-expense-tracker-v14';
 // This list includes all the essential files for the app to work offline.
 const URLS_TO_CACHE = [
   '/',
@@ -12,7 +12,7 @@ const URLS_TO_CACHE = [
   '/metadata.json',
   '/manifest.json',
   '/assets/icon.svg',
-  '/assets/noto-sans-bengali-font.ts', // Add the new local font asset to the cache
+  // '/assets/noto-sans-bengali-font.ts', // Removed bad font file
   '/components/BottomNav.tsx',
   '/components/Calculator.tsx',
   '/components/Header.tsx',

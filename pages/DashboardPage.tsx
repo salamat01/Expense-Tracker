@@ -6,7 +6,6 @@ import autoTable from 'jspdf-autotable';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { AppData } from '../types';
 import WalletIcon from '../components/icons/WalletIcon';
-import { notoSansBengaliBase64 } from '../assets/noto-sans-bengali-font';
 
 // Helper to get current month's start/end dates in YYYY-MM-DD format
 const getDefaultDateRange = () => {
@@ -167,21 +166,8 @@ const DashboardPage: React.FC = () => {
     
         try {
             const doc = new jsPDF();
-            let fontName = "helvetica";
-            
-            // Try to load custom font for Bengali support
-            try {
-                if (notoSansBengaliBase64 && notoSansBengaliBase64.length > 100) {
-                    doc.addFileToVFS("NotoSansBengali-Regular.ttf", notoSansBengaliBase64);
-                    doc.addFont("NotoSansBengali-Regular.ttf", "NotoSansBengali", "normal");
-                    fontName = "NotoSansBengali";
-                }
-            } catch (e) {
-                console.warn("Failed to load Bengali font, falling back to Helvetica.", e);
-                // Fallback will naturally occur as fontName stays "helvetica" if not updated or if error occurs
-                fontName = "helvetica";
-            }
-
+            // Use standard font to avoid decoding errors and 'widths' issues in autoTable
+            const fontName = "helvetica";
             doc.setFont(fontName, "normal");
     
             // Report Title and Date Range
@@ -211,7 +197,8 @@ const DashboardPage: React.FC = () => {
                 margin: { left: 14 }
             });
 
-            finalY = (doc as any).lastAutoTable.finalY + 10;
+            // Safely get finalY
+            finalY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 10 : finalY + 30;
 
             // Segment Breakdown Table
             if (segments.length > 0) {
@@ -228,7 +215,7 @@ const DashboardPage: React.FC = () => {
                     ];
                 });
 
-                // Sort by spent amount in descending order to show biggest expenses first
+                // Sort by spent amount in descending order
                 segmentRows.sort((a, b) => {
                     const spentA = parseFloat(String(a[2]).replace(/,/g, ''));
                     const spentB = parseFloat(String(b[2]).replace(/,/g, ''));
@@ -249,7 +236,7 @@ const DashboardPage: React.FC = () => {
                     headStyles: { fillColor: [56, 189, 248], textColor: 255, fontStyle: 'bold' },
                 });
 
-                finalY = (doc as any).lastAutoTable.finalY + 10;
+                finalY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 10 : finalY + 40;
             }
     
             // Expenses Table
@@ -264,7 +251,7 @@ const DashboardPage: React.FC = () => {
                     ];
                 });
 
-                // Check if we need a page break
+                // Check page break approximate
                 if (finalY > 250) {
                     doc.addPage();
                     finalY = 20;
@@ -284,7 +271,7 @@ const DashboardPage: React.FC = () => {
                     headStyles: { fillColor: [239, 68, 68], textColor: 255, fontStyle: 'bold' },
                 });
 
-                finalY = (doc as any).lastAutoTable.finalY + 10;
+                finalY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 10 : finalY + 40;
             }
     
             // Incomes Table
@@ -295,7 +282,6 @@ const DashboardPage: React.FC = () => {
                     inc.amount.toLocaleString()
                 ]);
 
-                 // Check if we need a page break
                  if (finalY > 250) {
                     doc.addPage();
                     finalY = 20;
@@ -319,13 +305,13 @@ const DashboardPage: React.FC = () => {
             const timestamp = new Date().toISOString().slice(0, 10);
             const filename = `Shuvo-Expense-Report-${timestamp}.pdf`;
             
-            // Generate Data URI instead of blob URL for better WebView compatibility
+            // Generate Data URI
             const dataUri = doc.output('datauristring');
             triggerDownload(dataUri, filename);
     
         } catch (error) {
             console.error("Error generating PDF:", error);
-            alert("An error occurred while generating the PDF report.");
+            alert("An error occurred while generating the PDF report. Please try again.");
         } finally {
             setIsGeneratingPdf(false);
         }
@@ -649,7 +635,16 @@ const DashboardPage: React.FC = () => {
                 {segmentSpending.length > 0 ? (
                     <ResponsiveContainer width="100%" height={300}>
                         <PieChart>
-                            <Pie data={segmentSpending} cx="50%" cy="50%" outerRadius={100} fill="#8884d8" dataKey="value" nameKey="name">
+                            <Pie 
+                                data={segmentSpending} 
+                                cx="50%" 
+                                cy="50%" 
+                                outerRadius={80} 
+                                fill="#8884d8" 
+                                dataKey="value" 
+                                nameKey="name"
+                                label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                            >
                                 {segmentSpending.map((entry) => <Cell key={`cell-${entry.name}`} fill={entry.color} />)}
                             </Pie>
                             <Tooltip content={<CustomTooltip />} />
