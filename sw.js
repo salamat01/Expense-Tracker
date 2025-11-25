@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'shuvo-expense-tracker-v12';
+const CACHE_NAME = 'shuvo-expense-tracker-v13';
 // This list includes all the essential files for the app to work offline.
 const URLS_TO_CACHE = [
   '/',
@@ -38,12 +38,16 @@ const URLS_TO_CACHE = [
   '/components/icons/SystemIcon.tsx',
   '/components/icons/TrashIcon.tsx',
   '/components/icons/SearchIcon.tsx',
+  '/components/icons/WalletIcon.tsx',
   // Caching external resources loaded via CDN
   'https://cdn.tailwindcss.com',
   'https://aistudiocdn.com/react@^19.2.0',
   'https://aistudiocdn.com/react-dom@^19.2.0/client',
   'https://aistudiocdn.com/react-router-dom@^7.9.4',
   'https://aistudiocdn.com/react@^19.2.0/jsx-runtime',
+  'https://aistudiocdn.com/recharts@^3.3.0',
+  'https://aistudiocdn.com/jspdf@^3.0.3',
+  'https://aistudiocdn.com/jspdf-autotable@^5.0.2'
 ];
 
 // Install event: cache the app shell

@@ -6,6 +6,7 @@ import autoTable from 'jspdf-autotable';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { AppData } from '../types';
 import WalletIcon from '../components/icons/WalletIcon';
+import { notoSansBengaliBase64 } from '../assets/noto-sans-bengali-font';
 
 // Helper to get current month's start/end dates in YYYY-MM-DD format
 const getDefaultDateRange = () => {
@@ -33,6 +34,20 @@ const CustomTooltip = ({ active, payload }: any) => {
     return null;
 };
 
+// Helper to trigger download via Data URI (Compatible with WebView/Android)
+const triggerDownload = (dataUri: string, filename: string) => {
+    const link = document.createElement('a');
+    link.href = dataUri;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+// Helper to encode Unicode strings to Base64
+const toBase64 = (str: string) => {
+    return window.btoa(unescape(encodeURIComponent(str)));
+};
 
 const DashboardPage: React.FC = () => {
     const { expenses, segments, incomes, isLoading, replaceAllData } = useData();
@@ -152,9 +167,22 @@ const DashboardPage: React.FC = () => {
     
         try {
             const doc = new jsPDF();
+            let fontName = "helvetica";
             
-            // Use standard font to avoid encoding errors with custom fonts
-            doc.setFont("helvetica", "normal");
+            // Try to load custom font for Bengali support
+            try {
+                if (notoSansBengaliBase64 && notoSansBengaliBase64.length > 100) {
+                    doc.addFileToVFS("NotoSansBengali-Regular.ttf", notoSansBengaliBase64);
+                    doc.addFont("NotoSansBengali-Regular.ttf", "NotoSansBengali", "normal");
+                    fontName = "NotoSansBengali";
+                }
+            } catch (e) {
+                console.warn("Failed to load Bengali font, falling back to Helvetica.", e);
+                // Fallback will naturally occur as fontName stays "helvetica" if not updated or if error occurs
+                fontName = "helvetica";
+            }
+
+            doc.setFont(fontName, "normal");
     
             // Report Title and Date Range
             doc.setFontSize(18);
@@ -178,7 +206,7 @@ const DashboardPage: React.FC = () => {
                 startY: finalY,
                 body: summaryData,
                 theme: 'plain',
-                styles: { fontSize: 11 },
+                styles: { fontSize: 11, font: fontName },
                 columnStyles: { 0: { fontStyle: 'bold', halign: 'right', cellWidth: 50 }, 1: { halign: 'left' } },
                 margin: { left: 14 }
             });
@@ -217,6 +245,7 @@ const DashboardPage: React.FC = () => {
                     head: [['Segment', 'Allocated (BDT)', 'Spent (BDT)', 'Remaining (BDT)']],
                     body: segmentRows,
                     theme: 'striped',
+                    styles: { font: fontName },
                     headStyles: { fillColor: [56, 189, 248], textColor: 255, fontStyle: 'bold' },
                 });
 
@@ -251,6 +280,7 @@ const DashboardPage: React.FC = () => {
                     head: [['Date', 'Title', 'Segment', 'Amount (BDT)']],
                     body: expenseRows,
                     theme: 'striped',
+                    styles: { font: fontName },
                     headStyles: { fillColor: [239, 68, 68], textColor: 255, fontStyle: 'bold' },
                 });
 
@@ -281,12 +311,17 @@ const DashboardPage: React.FC = () => {
                     head: [['Date', 'Title', 'Amount (BDT)']],
                     body: incomeRows,
                     theme: 'striped',
+                    styles: { font: fontName },
                     headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
                 });
             }
     
             const timestamp = new Date().toISOString().slice(0, 10);
-            doc.save(`Shuvo-Expense-Report-${timestamp}.pdf`);
+            const filename = `Shuvo-Expense-Report-${timestamp}.pdf`;
+            
+            // Generate Data URI instead of blob URL for better WebView compatibility
+            const dataUri = doc.output('datauristring');
+            triggerDownload(dataUri, filename);
     
         } catch (error) {
             console.error("Error generating PDF:", error);
@@ -399,18 +434,14 @@ const DashboardPage: React.FC = () => {
             </html>`;
     
         try {
-            const blob = new Blob([excelHtml], { type: 'application/vnd.ms-excel;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
             const timestamp = new Date().toISOString().slice(0, 10);
-            link.href = url;
-            link.download = `Shuvo-Expense-Report-${timestamp}.xls`;
-            document.body.appendChild(link);
-            link.click();
-            setTimeout(() => {
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-            }, 100);
+            const filename = `Shuvo-Expense-Report-${timestamp}.xls`;
+            
+            // Use Data URI for WebView compatibility
+            const base64 = toBase64(excelHtml);
+            const dataUri = `data:application/vnd.ms-excel;charset=utf-8;base64,${base64}`;
+            
+            triggerDownload(dataUri, filename);
         } catch (error) {
             console.error("Failed to export Excel:", error);
             alert("An error occurred while exporting the Excel file.");
@@ -422,18 +453,14 @@ const DashboardPage: React.FC = () => {
         try {
             const appData: AppData = { incomes, expenses, segments };
             const jsonString = JSON.stringify(appData, null, 2);
-            const blob = new Blob([jsonString], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
             const timestamp = new Date().toISOString().slice(0, 10);
-            link.href = url;
-            link.download = `shuvo-expense-tracker-backup-${timestamp}.json`;
-            document.body.appendChild(link);
-            link.click();
-            setTimeout(() => {
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-            }, 100);
+            const filename = `shuvo-expense-tracker-backup-${timestamp}.json`;
+
+            // Use Data URI for WebView compatibility
+            const base64 = toBase64(jsonString);
+            const dataUri = `data:application/json;charset=utf-8;base64,${base64}`;
+            
+            triggerDownload(dataUri, filename);
         } catch (error) {
             console.error("Failed to export data:", error);
             alert("An error occurred while exporting your data.");
